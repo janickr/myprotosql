@@ -1,0 +1,5 @@
+import "imports_submessage.proto";
+
+message ParentMessageImports {
+  optional SubMessageImports c = 3;
+}

@@ -1,0 +1,6 @@
+package foo.bar.imports.sub;
+
+message SubMessagePackageImports {
+  optional int32 a = 1;
+}
+

@@ -1,0 +1,4 @@
+
+message StringMessage {
+  optional string b = 2;
+}

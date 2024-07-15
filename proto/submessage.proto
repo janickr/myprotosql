@@ -1,0 +1,9 @@
+
+
+message SubMessage {
+  optional int32 a = 1;
+}
+
+message ParentMessage {
+  optional SubMessage c = 3;
+}

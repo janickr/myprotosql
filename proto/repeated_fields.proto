@@ -1,0 +1,5 @@
+
+message RepeatedFields {
+  optional string d = 4;
+  repeated int32 e = 5;
+}

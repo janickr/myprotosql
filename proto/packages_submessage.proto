@@ -1,0 +1,9 @@
+package foo.bar;
+
+message SubMessagePackage {
+  optional int32 a = 1;
+}
+
+message ParentMessagePackage {
+  optional SubMessagePackage c = 3;
+}

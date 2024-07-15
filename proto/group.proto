@@ -1,0 +1,7 @@
+
+message GroupMessage {
+  optional group MyGroup = 1 {
+    optional string a = 1;
+    optional int32 b = 2;
+  }
+}

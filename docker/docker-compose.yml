@@ -1,0 +1,21 @@
+version: '3.3'
+services:
+
+  db:
+    image: mysql:8.4
+    container_name: mysql_8_4
+#    command:
+#    restart: always
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: test_db
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: test_db
+      MYSQL_PASSWORD: test_db
+      log_bin_trust_function_creators: 1
+    volumes:
+      - my-datavolume:/var/lib/mysql
+
+volumes:
+  my-datavolume:

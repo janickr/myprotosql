@@ -1,0 +1,9 @@
+/build/
+/bin/
+/.idea/
+*.iml
+
+/dist/
+*.egg-info
+__pycache__
+.pytest_cache

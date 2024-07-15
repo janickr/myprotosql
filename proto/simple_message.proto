@@ -1,0 +1,4 @@
+
+message SimpleMessage {
+  optional int32 a = 1;
+}

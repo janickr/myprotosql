@@ -1,0 +1,7 @@
+import "packages_imports_submessage.proto";
+
+package foo.bar.imports.parent;
+
+message ParentMessagePackageImports {
+  optional foo.bar.imports.sub.SubMessagePackageImports c = 3;
+}
