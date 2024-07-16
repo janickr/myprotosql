@@ -14,11 +14,11 @@ create function _myproto_unquote(p_json_string_or_null JSON) returns varchar(100
 
 CREATE PROCEDURE var_int(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_result bigint unsigned)
 BEGIN
-  DECLARE error_text varchar(128) default CONCAT('VarInt at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
+  DECLARE error_text_exceeds_limit varchar(128) default CONCAT('VarInt at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
+  DECLARE error_text_too_many_bytes varchar(128) default CONCAT('VarInt at offset ', p_offset, ' has more than 10 bytes');
   DECLARE next varbinary(10000);
   DECLARE shift, count integer;
   DECLARE b integer(1);
-    -- todo janick max varint bytes check
   SET p_result = 0;
   SET shift = 0;
   SET count = 1;
@@ -37,7 +37,10 @@ BEGIN
   END REPEAT;
   IF count > p_limit-p_offset+1 THEN
     SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = error_text;
+        SET MESSAGE_TEXT = error_text_exceeds_limit;
+  ELSEIF count > 10 THEN
+    SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = error_text_too_many_bytes;
   ELSE
     SET p_offset = p_offset + count;
   END IF;
@@ -64,10 +67,10 @@ END
 
 CREATE PROCEDURE get_i32_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
   BEGIN
-    DECLARE error_text varchar(128) default CONCAT('i32 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
+    DECLARE error_text_exceeds_limit varchar(128) default CONCAT('i32 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
 
     IF p_offset + 4 > p_limit THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
     ELSE
         CALL get_fixed_number_value(p_bytes, p_offset, 4, p_value);
     END IF;
@@ -76,10 +79,10 @@ CREATE PROCEDURE get_i32_value(IN p_bytes varbinary(10000), INOUT p_offset integ
 
 CREATE PROCEDURE get_i64_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
   BEGIN
-    DECLARE error_text varchar(128) default CONCAT('i64 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
+    DECLARE error_text_exceeds_limit varchar(128) default CONCAT('i64 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
 
     IF p_offset + 8 > p_limit THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
     ELSE
         CALL get_fixed_number_value(p_bytes, p_offset, 8, p_value);
     END IF;
@@ -88,11 +91,16 @@ CREATE PROCEDURE get_i64_value(IN p_bytes varbinary(10000), INOUT p_offset integ
 
 CREATE PROCEDURE get_len_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value JSON)
 BEGIN
+  DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
+
   DECLARE length integer;
   CALL var_int(p_bytes, p_offset, p_limit, length);
-  -- todo length should be within the limit
-  SET p_value = JSON_QUOTE(cast(substr(p_bytes, p_offset, length) as char));
-  SET p_offset = p_offset + length;
+  IF p_offset + length > p_limit THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
+  ELSE
+    SET p_value = JSON_QUOTE(cast(substr(p_bytes, p_offset, length) as char));
+    SET p_offset = p_offset + length;
+  END IF;
 END;
 //
 
@@ -353,7 +361,7 @@ CREATE PROCEDURE _myproto_pop_frame(
 //
 
 CREATE FUNCTION _myproto_is_frame_field(p_stack JSON, p_field integer) returns boolean deterministic
-    RETURN JSON_EXTRACT(p_stack, '$[0].field') = p_field;
+    RETURN JSON_EXTRACT(p_stack, '$[0].field_number') = p_field;
 //
 
 CREATE PROCEDURE _myproto_get_field_and_wiretype(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_field_number integer, OUT p_wiretype integer)
@@ -368,10 +376,15 @@ END;
 
 CREATE PROCEDURE _myproto_len_limit(IN p_bytes varbinary(10000), INOUT p_offset integer, INOUT p_limit integer)
 BEGIN
+  DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
+
   DECLARE value integer;
   CALL var_int(p_bytes, p_offset, p_limit, value);
-  -- todo raise when new limit > old limit
-  SET p_limit = p_offset + value;
+  IF p_offset + value > p_limit THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
+  ELSE
+    SET p_limit = p_offset + value;
+  END IF;
 END;
 //
 
@@ -422,7 +435,7 @@ END;
 
 CREATE FUNCTION _myproto_is_start_submessage(p_message JSON, last_element varchar(50), p_depth integer, p_parent_path varchar(1000), p_field_number integer) RETURNS boolean deterministic
 BEGIN
-    RETURN (cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(last_element, '.type'))) as char) = 'object'
+    RETURN (cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(last_element, '.type'))) as char) = 'message'
         AND JSON_EXTRACT(p_message, CONCAT(last_element, '.depth')) = p_depth
         AND cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(last_element, '.path'))) as char) = p_parent_path
         AND JSON_EXTRACT(p_message, CONCAT(last_element, '.field')) = p_field_number);
@@ -433,11 +446,12 @@ CREATE PROCEDURE _myproto_undo_appended_fields(INOUT p_message JSON, IN p_depth 
 BEGIN
     DECLARE length integer DEFAULT JSON_LENGTH(p_message)-1;
     DECLARE last_element varchar(50) DEFAULT CONCAT('$[',length,']');
-    WHILE NOT _myproto_is_start_submessage(p_message, last_element, p_depth, p_parent_path, p_field_number) AND length > 1 DO
+    WHILE NOT _myproto_is_start_submessage(p_message, last_element, p_depth, p_parent_path, p_field_number) AND length >= 1 DO
         SET p_message = JSON_REMOVE(p_message, last_element);
         SET length = length-1;
+        SET last_element = CONCAT('$[',length,']');
     END WHILE;
-    SET p_message = JSON_REMOVE(p_message, CONCAT('$[',length,']'));
+    SET p_message = JSON_REMOVE(p_message, last_element);
 END;
 //
 
@@ -479,6 +493,42 @@ BEGIN
 END;
 //
 
+CREATE PROCEDURE _myproto_recover_from_error(
+    IN p_bytes varbinary(10000),
+    INOUT p_stack JSON,
+    INOUT p_message JSON,
+    OUT p_offset integer,
+    OUT p_limit integer,
+    OUT p_path varchar(1000),
+    OUT p_field_number integer,
+    OUT p_field_name varchar(1000),
+    OUT p_message_type varchar(1000)
+)
+BEGIN
+    DECLARE in_error_state boolean default true;
+    DECLARE value JSON;
+
+    WHILE in_error_state and JSON_LENGTH(p_stack) > 0 DO
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLSTATE '45000'
+            BEGIN
+               -- todo resignal if p_stack empty?
+               SET in_error_state = true;
+            END;
+             -- check if stack > 1, if not there is a bug
+                -- resignal if not decode raw
+            CALL _myproto_pop_frame_and_reset(p_stack, p_offset,p_limit, p_path, p_field_number, p_field_name, p_message_type);
+            CALL _myproto_undo_appended_fields(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number);
+            SET in_error_state = false;
+            CALL get_len_value(p_bytes, p_offset, p_limit, value);
+            IF not in_error_state THEN
+                CALL _myproto_append_path_value(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number, p_field_name, NULL, value);
+            END IF;
+        END;
+    END WHILE;
+END;
+//
+
 CREATE FUNCTION _myproto_flatten_message(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns JSON deterministic
 BEGIN
   DECLARE offset integer default 1;
@@ -487,7 +537,8 @@ BEGIN
   DECLARE message, stack, value JSON;
   DECLARE parent_path varchar(1000) default '$';
   DECLARE message_type varchar(1000) default '';
-  DECLARE sub_message_type, field_type, field_name varchar(1000) default p_message_type;
+  DECLARE sub_message_type varchar(1000) default p_message_type;
+  DECLARE field_type, field_name varchar(1000);
   DECLARE decode_raw boolean default p_message_type IS NULL;
 
   SET stack = JSON_ARRAY();
@@ -496,102 +547,47 @@ BEGIN
 
    WHILE offset < p_limit DO
       BEGIN
-        DECLARE CONTINUE HANDLER FOR SQLSTATE '45000'
-        BEGIN
-            -- check if stack > 1, if not there is a bug
-            -- resignal if not decode raw
-            CALL _myproto_pop_frame_and_reset(stack, offset,m_limit, parent_path, field_number, field_name, message_type);
-            CALL _myproto_undo_appended_fields(message, JSON_LENGTH(stack)-1, parent_path, field_number);
-            CALL get_len_value(p_bytes, offset, m_limit, value);
-            CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_type, value);
-        END;
+          BEGIN
+            DECLARE EXIT HANDLER FOR SQLSTATE '45000'
+            BEGIN
+               CALL _myproto_recover_from_error(p_bytes, stack, message, offset,m_limit, parent_path, field_number, field_name, message_type);
+            END;
 
-        CALL _myproto_get_field_and_wiretype(p_bytes, offset, m_limit, field_number, wiretype);
-        CALL _myproto_get_field_properties(message_type, field_number, wiretype, p_protos, field_type, field_name, sub_message_type);
+            CALL _myproto_get_field_and_wiretype(p_bytes, offset, m_limit, field_number, wiretype);
+            CALL _myproto_get_field_properties(message_type, field_number, wiretype, p_protos, field_type, field_name, sub_message_type);
 
-        IF _myproto_wiretype_len(wiretype) THEN
-            IF field_type = 'TYPE_MESSAGE' OR decode_raw THEN
+            IF _myproto_wiretype_len(wiretype) THEN
+                IF field_type = 'TYPE_MESSAGE' OR decode_raw THEN
+                    CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, message_type);
+                    CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, message_type, sub_message_type);
+                    CALL _myproto_len_limit(p_bytes, offset, m_limit);
+                ELSE
+                    CALL get_len_value(p_bytes, offset, m_limit, value);
+                    CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_type, value);
+                END IF;
+            ELSEIF _myproto_wiretype_sgroup(wiretype) THEN
                 CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, message_type);
                 CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, message_type, sub_message_type);
-                CALL _myproto_len_limit(p_bytes, offset, m_limit);
+                -- CALL _myproto_len_limit(p_bytes, offset, m_limit);
+            ELSEIF _myproto_wiretype_egroup(wiretype) THEN
+                IF _myproto_is_frame_field(stack, field_number) THEN
+                    CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, message_type);
+                ELSE
+                    SIGNAL SQLSTATE '45000'
+                        SET MESSAGE_TEXT = 'Malformed message';
+                END IF;
             ELSE
-                CALL get_len_value(p_bytes, offset, m_limit, value);
-                CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_type, value);
+                CALL _myproto_get_number_field_value(p_bytes, offset, m_limit, wiretype, value, field_type);
+                CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_type,value );
             END IF;
-        ELSEIF _myproto_wiretype_sgroup(wiretype) THEN
-            CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, message_type);
-            CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, message_type, sub_message_type);
-            CALL _myproto_len_limit(p_bytes, offset, m_limit);
-        ELSEIF _myproto_wiretype_egroup(wiretype) THEN
-            IF _myproto_is_frame_field(stack, field_number) THEN
-                CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, message_type);
-            ELSE
-                SIGNAL SQLSTATE '45000'
-                    SET MESSAGE_TEXT = 'Malformed message';
-            END IF;
-        ELSE
-            CALL _myproto_get_number_field_value(p_bytes, offset, m_limit, wiretype, value, field_type);
-            CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_type,value );
-        END IF;
 
-        IF offset = m_limit THEN
-            CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, message_type);
-        END IF;
-    END;
-  END WHILE;
+            IF offset = m_limit THEN
+                CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, message_type);
+            END IF;
+          END;
+      END;
+   END WHILE;
 
   return message;
-END;
-//
-
-
-CREATE procedure _p_myproto_flatten_message(p_bytes varbinary(10000))
-BEGIN
-  DECLARE offset integer default 1;
-  DECLARE field_number, wiretype, egroup_field_number integer;
-  DECLARE p_limit, m_limit integer default length(p_bytes)+1;
-  DECLARE message, stack, value JSON;
-  DECLARE parent_path varchar(1000) default '';
-
-  SET stack = JSON_ARRAY();
-  CALL _myproto_push_frame(stack, offset, m_limit, parent_path, NULL);
-  SET message = JSON_ARRAY();
-
-  WHILE offset < p_limit DO
-      BEGIN
-        DECLARE CONTINUE HANDLER FOR SQLSTATE '45000'
-        BEGIN
-            select 'error', stack, offset,m_limit, parent_path, field_number;
-            CALL _myproto_pop_frame_and_reset(stack, offset,m_limit, parent_path, field_number);
-            CALL _myproto_undo_appended_fields(message, JSON_LENGTH(stack)-1, parent_path, field_number);
-            select 'popped', message, stack;
-            CALL get_len_value(p_bytes, offset, m_limit, value);
-            CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, value);
-            select 'appended', message;
-        END;
-
-        CALL _myproto_get_field_and_wiretype(p_bytes, offset, m_limit, field_number, wiretype);
-
-        IF _myproto_wiretype_len(wiretype) OR _myproto_wiretype_sgroup(wiretype) THEN
-            CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number);
-            CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number);
-            CALL _myproto_len_limit(p_bytes, offset, m_limit);
-            select 'sub', message, stack;
-        ELSEIF _myproto_wiretype_egroup(wiretype) THEN
-            IF _myproto_is_frame_field(stack, field_number) THEN
-                CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number);
-            ELSE
-                SIGNAL SQLSTATE '45000'
-                    SET MESSAGE_TEXT = 'Malformed message';
-            END IF;
-            select 'egroup', message, stack;
-        ELSE
-            CALL _myproto_get_field_value(p_bytes, offset, m_limit, wiretype, value);
-            CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, value);
-        END IF;
-    END;
-  END WHILE;
-
-  select message;
 END;
 //
