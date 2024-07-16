@@ -19,31 +19,22 @@ def field_descriptor(field):
 
 def descriptor(proto_file:  descriptor_pb2.FileDescriptorProto, message_type):
     return {
-        # 'fqn': fqn(proto_file, message_type),
         'package': proto_file.package,
         'name': message_type.name,
         'fields': {field.number: field_descriptor(field) for field in message_type.field}
     }
 
 
-if __name__ == "__main__":
+def run_plugin():
     request = plugin.CodeGeneratorRequest.FromString(sys.stdin.buffer.read())
     response = plugin.CodeGeneratorResponse()
-    # print(request.ToJSONString())
 
     generated_file = response.file.add()
-    generated_file.name = "hello_world.json"
-    generated_file.content = MessageToJson(request)
-    # for proto_file in request.proto_file:                         # 1
-    #     if proto_file.name in request.file_to_generate:           # 2
-    #         f = generate_for_proto(proto_file)                    # 3
-    #         response.file.append(f)                               # 4
 
     descriptors = {
         fqn(proto_file, message_type): descriptor(proto_file, message_type)
         for proto_file in request.proto_file
         for message_type in proto_file.message_type}
-    other = response.file.add()
 
     generated_file.name = "myproto_descriptors.sql"
 
@@ -54,4 +45,5 @@ CREATE FUNCTION myproto_descriptors() RETURNS JSON deterministic
 //
     '''
 
-    sys.stdout.buffer.write(response.SerializeToString())
+if __name__ == "__main__":
+    run_plugin()
