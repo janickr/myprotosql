@@ -1,1 +1,1 @@
-from .myprotosql import run_plugin
+from .myprotosql import run_plugin, dump_request

@@ -468,7 +468,7 @@ BEGIN
       OR (p_wiretype = 1 AND p_field_type IN ('TYPE_FIXED64', 'TYPE_SFIXED64', 'TYPE_DOUBLE'))
       OR (p_wiretype = 2 AND p_field_type IN ('TYPE_STRING', 'TYPE_BYTES', 'TYPE_MESSAGE'))
       OR (p_wiretype = 3 AND p_field_type = 'TYPE_GROUP')
-      OR (p_wiretype = 4 AND p_field_type = 'TYPE_GROUP')
+      OR (p_wiretype = 4) -- AND p_field_type = 'TYPE_GROUP') todo figure out a way to validate egroup
       OR (p_wiretype = 5 AND p_field_type IN ('TYPE_FIXED32', 'TYPE_SFIXED32', 'TYPE_FLOAT'))
       ) THEN
         SIGNAL SQLSTATE '45000'
@@ -558,7 +558,7 @@ BEGIN
 
             IF _myproto_wiretype_len(wiretype) THEN
                 IF field_type = 'TYPE_MESSAGE' OR decode_raw THEN
-                    CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, message_type);
+                    CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, sub_message_type);
                     CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, message_type, sub_message_type);
                     CALL _myproto_len_limit(p_bytes, offset, m_limit);
                 ELSE
@@ -566,9 +566,8 @@ BEGIN
                     CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_type, value);
                 END IF;
             ELSEIF _myproto_wiretype_sgroup(wiretype) THEN
-                CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, message_type);
+                CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, sub_message_type);
                 CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, message_type, sub_message_type);
-                -- CALL _myproto_len_limit(p_bytes, offset, m_limit);
             ELSEIF _myproto_wiretype_egroup(wiretype) THEN
                 IF _myproto_is_frame_field(stack, field_number) THEN
                     CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, message_type);

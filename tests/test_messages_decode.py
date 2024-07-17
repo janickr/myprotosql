@@ -8,25 +8,26 @@ import build.group_pb2 as group_pb2
 from mysql.connector import MySQLConnection
 
 
-class TestDecodeRawMessages:
+class TestDecodeMessages:
 
-    def decode_raw(self, connection, p_bytes):
+
+    def decode(self, connection, p_bytes, p_message_type):
         with connection.cursor() as cursor:
-            cursor.execute("select _myproto_flatten_message(%s, NULL, NULL)", (p_bytes,))
+            cursor.execute("select _myproto_flatten_message(%s, %s, myproto_descriptors())", (p_bytes, p_message_type))
             return json.loads(cursor.fetchone()[0])
 
-    def test_simple_message(self, db:  MySQLConnection):
+    def test_simple_message_decode(self, db:  MySQLConnection):
         message = simple_message_pb2.SimpleMessage()
         message.a = 123456
-        assert (self.decode_raw(db, message.SerializeToString()) ==
+        assert (self.decode(db, message.SerializeToString(), '.SimpleMessage') ==
                 [
                     {
                         "path": "$",
                         "type": "field",
                         "depth": 0,
                         "value": 123456,
-                        "field_name": None,
-                        "field_type": None,
+                        "field_name": 'a',
+                        "field_type": 'TYPE_INT32',
                         "field_number": 1
                     }
                 ])
@@ -34,15 +35,15 @@ class TestDecodeRawMessages:
     def test_string_message(self, db:  MySQLConnection):
         message = string_message_pb2.StringMessage()
         message.b = 'Hello World!'
-        assert (self.decode_raw(db, message.SerializeToString()) ==
+        assert (self.decode(db, message.SerializeToString(), '.StringMessage') ==
                 [
                     {
                         "path": "$",
                         "type": "field",
                         "depth": 0,
                         "value": "Hello World!",
-                        "field_name": None,
-                        "field_type": None,
+                        "field_name": "b",
+                        "field_type": "TYPE_STRING",
                         "field_number": 2
                     }
                 ])
@@ -50,15 +51,15 @@ class TestDecodeRawMessages:
     def test_string_message_recover_from_malformed_submessage(self, db:  MySQLConnection):
         message = string_message_pb2.StringMessage()
         message.b = 'Repeated!'
-        assert (self.decode_raw(db, message.SerializeToString()) ==
+        assert (self.decode(db, message.SerializeToString(), '.StringMessage') ==
                 [
                     {
                         "path": "$",
                         "type": "field",
                         "depth": 0,
                         "value": "Repeated!",
-                        "field_name": None,
-                        "field_type": None,
+                        "field_name": "b",
+                        "field_type": "TYPE_STRING",
                         "field_number": 2
                     }
                 ])
@@ -70,32 +71,32 @@ class TestDecodeRawMessages:
         message.e.append(2)
         message.e.append(3)
 
-        assert (self.decode_raw(db, message.SerializeToString()) ==
+        assert (self.decode(db, message.SerializeToString(), '.RepeatedFields') ==
                 [{'depth': 0,
-                  'field_name': None,
+                  'field_name': "d",
                   'field_number': 4,
-                  'field_type': None,
+                  'field_type': "TYPE_STRING",
                   'path': '$',
                   'type': 'field',
                   'value': '123'},
                 {'depth': 0,
-                  'field_name': None,
+                  'field_name': "e",
                   'field_number': 5,
-                  'field_type': None,
+                  'field_type': "TYPE_INT32",
                   'path': '$',
                   'type': 'field',
                   'value': 1},
                  {'depth': 0,
-                  'field_name': None,
+                  'field_name': "e",
                   'field_number': 5,
-                  'field_type': None,
+                  'field_type': "TYPE_INT32",
                   'path': '$',
                   'type': 'field',
                   'value': 2},
                  {'depth': 0,
-                  'field_name': None,
+                  'field_name': "e",
                   'field_number': 5,
-                  'field_type': None,
+                  'field_type': "TYPE_INT32",
                   'path': '$',
                   'type': 'field',
                   'value': 3}])
@@ -105,18 +106,18 @@ class TestDecodeRawMessages:
         message.d = 'Repeated!'
         message.e.append(1)
 
-        assert (self.decode_raw(db, message.SerializeToString()) ==
+        assert (self.decode(db, message.SerializeToString(), '.RepeatedFields') ==
                 [{'depth': 0,
-                  'field_name': None,
+                  'field_name': "d",
                   'field_number': 4,
-                  'field_type': None,
+                  'field_type': "TYPE_STRING",
                   'path': '$',
                   'type': 'field',
                   'value': 'Repeated!'},
                 {'depth': 0,
-                  'field_name': None,
+                  'field_name': "e",
                   'field_number': 5,
-                  'field_type': None,
+                  'field_type': "TYPE_INT32",
                   'path': '$',
                   'type': 'field',
                   'value': 1}])
@@ -125,18 +126,18 @@ class TestDecodeRawMessages:
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456
 
-        assert (self.decode_raw(db, message.SerializeToString()) ==
+        assert (self.decode(db, message.SerializeToString(), '.ParentMessage') ==
                 [
                     {'depth': 0,
-                     'field_name': None,
+                     'field_name': 'c',
                      'field_number': 3,
-                     'message_type': None,
+                     'message_type': '.SubMessage',
                      'path': '$',
                      'type': 'message'},
                     {'depth': 1,
-                     'field_name': None,
+                     'field_name': 'a',
                      'field_number': 1,
-                     'field_type': None,
+                     'field_type': 'TYPE_INT32',
                      'path': '$.3',
                      'type': 'field',
                      'value': 123456}
@@ -147,26 +148,27 @@ class TestDecodeRawMessages:
         message.mygroup.a = 'a group'
         message.mygroup.b = 123456
 
-        assert (self.decode_raw(db, message.SerializeToString()) ==
+        assert (self.decode(db, message.SerializeToString(), '.GroupMessage') ==
                 [
                     {'depth': 0,
-                     'field_name': None,
+                     'field_name': 'mygroup',
                      'field_number': 1,
-                     'message_type': None,
+                     'message_type': '.GroupMessage.MyGroup',
                      'path': '$',
                      'type': 'message'},
                     {'depth': 1,
-                     'field_name': None,
+                     'field_name': 'a',
                      'field_number': 1,
-                     'field_type': None,
+                     'field_type': 'TYPE_STRING',
                      'path': '$.1',
                      'type': 'field',
                      'value': 'a group'},
                     {'depth': 1,
-                     'field_name': None,
+                     'field_name': 'b',
                      'field_number': 2,
-                     'field_type': None,
+                     'field_type': 'TYPE_INT32',
                      'path': '$.1',
                      'type': 'field',
                      'value': 123456}
                 ])
+
