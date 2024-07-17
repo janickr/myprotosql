@@ -1,10 +1,12 @@
-
 import json
-import build.simple_message_pb2 as simple_message_pb2
-import build.string_message_pb2 as string_message_pb2
-import build.repeated_fields_pb2 as repeated_fields_pb2
-import build.submessage_pb2 as submessage_pb2
-import build.group_pb2 as group_pb2
+import simple_message_pb2 as simple_message_pb2
+import string_message_pb2 as string_message_pb2
+import repeated_fields_pb2 as repeated_fields_pb2
+import submessage_pb2 as submessage_pb2
+import packages_submessage_pb2 as packages_submessage_pb2
+import imports_parentmessage_pb2 as imports_parentmessage_pb2
+import packages_imports_parentmessage_pb2 as packages_imports_parentmessage_pb2
+import group_pb2 as group_pb2
 from mysql.connector import MySQLConnection
 
 
@@ -172,3 +174,66 @@ class TestDecodeMessages:
                      'value': 123456}
                 ])
 
+    def test_packages_submessage(self, db:  MySQLConnection):
+        message = packages_submessage_pb2.ParentMessagePackage()
+        message.c.a = 123456
+
+        assert (self.decode(db, message.SerializeToString(), '.foo.bar.ParentMessagePackage') ==
+                [
+                    {'depth': 0,
+                     'field_name': 'c',
+                     'field_number': 3,
+                     'message_type': '.foo.bar.SubMessagePackage',
+                     'path': '$',
+                     'type': 'message'},
+                    {'depth': 1,
+                     'field_name': 'a',
+                     'field_number': 1,
+                     'field_type': 'TYPE_INT32',
+                     'path': '$.3',
+                     'type': 'field',
+                     'value': 123456}
+                ])
+
+    def test_imports_submessage(self, db:  MySQLConnection):
+        message = imports_parentmessage_pb2.ParentMessageImports()
+        message.c.a = 123456
+
+        assert (self.decode(db, message.SerializeToString(), '.ParentMessageImports') ==
+                [
+                    {'depth': 0,
+                     'field_name': 'c',
+                     'field_number': 3,
+                     'message_type': '.SubMessageImports',
+                     'path': '$',
+                     'type': 'message'},
+                    {'depth': 1,
+                     'field_name': 'a',
+                     'field_number': 1,
+                     'field_type': 'TYPE_INT32',
+                     'path': '$.3',
+                     'type': 'field',
+                     'value': 123456}
+                ])
+
+
+    def test_submessage(self, db: MySQLConnection):
+        message = packages_imports_parentmessage_pb2.ParentMessagePackageImports()
+        message.c.a = 123456
+
+        assert (self.decode(db, message.SerializeToString(), '.foo.bar.imports.parent.ParentMessagePackageImports') ==
+                [
+                    {'depth': 0,
+                     'field_name': 'c',
+                     'field_number': 3,
+                     'message_type': '.foo.bar.imports.sub.SubMessagePackageImports',
+                     'path': '$',
+                     'type': 'message'},
+                    {'depth': 1,
+                     'field_name': 'a',
+                     'field_number': 1,
+                     'field_type': 'TYPE_INT32',
+                     'path': '$.3',
+                     'type': 'field',
+                     'value': 123456}
+                ])

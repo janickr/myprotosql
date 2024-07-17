@@ -1,10 +1,10 @@
 
 import json
-import build.simple_message_pb2 as simple_message_pb2
-import build.string_message_pb2 as string_message_pb2
-import build.repeated_fields_pb2 as repeated_fields_pb2
-import build.submessage_pb2 as submessage_pb2
-import build.group_pb2 as group_pb2
+import simple_message_pb2 as simple_message_pb2
+import string_message_pb2 as string_message_pb2
+import repeated_fields_pb2 as repeated_fields_pb2
+import submessage_pb2 as submessage_pb2
+import group_pb2 as group_pb2
 from mysql.connector import MySQLConnection
 
 

@@ -1,6 +1,8 @@
 import pytest
 import mysql.connector
 
+import sys
+sys.path.append("../build")
 
 @pytest.fixture(scope="session")
 def db():
