@@ -1,0 +1,13 @@
+
+
+message OneOfSubMessage {
+  optional int32 a = 1;
+}
+
+message OneOfMessage {
+  oneof test_oneof {
+    string name = 4;
+    int32 a_number = 6;
+    OneOfSubMessage sub_message = 9;
+  }
+}

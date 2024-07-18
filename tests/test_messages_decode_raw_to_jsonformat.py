@@ -1,12 +1,10 @@
 import json
-import simple_message_pb2 as simple_message_pb2
-import string_message_pb2 as string_message_pb2
-import repeated_fields_pb2 as repeated_fields_pb2
-import submessage_pb2 as submessage_pb2
-import packages_submessage_pb2 as packages_submessage_pb2
-import imports_parentmessage_pb2 as imports_parentmessage_pb2
-import packages_imports_parentmessage_pb2 as packages_imports_parentmessage_pb2
-import group_pb2 as group_pb2
+import simple_message_pb2
+import string_message_pb2
+import repeated_fields_pb2
+import submessage_pb2
+import group_pb2
+import oneof_pb2
 from mysql.connector import MySQLConnection
 
 
@@ -41,11 +39,23 @@ class TestDecodeRawJsonFormat:
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456
 
-        assert self.jsonformat(db, message.SerializeToString()) == {"3": { "1": 123456 }}
+        assert self.jsonformat(db, message.SerializeToString()) == {"3": {"1": 123456}}
 
     def test_group(self, db:  MySQLConnection):
         message = group_pb2.GroupMessage()
         message.mygroup.a = 'a group'
         message.mygroup.b = 123456
 
-        assert self.jsonformat(db, message.SerializeToString()) == {"1": { "1": "a group", "2": 123456 }}
+        assert self.jsonformat(db, message.SerializeToString()) == {"1": {"1": "a group", "2": 123456}}
+
+    def test_oneof_submessage(self, db: MySQLConnection):
+        message = oneof_pb2.OneOfMessage()
+        message.sub_message.a = 123456
+
+        assert self.jsonformat(db, message.SerializeToString()) == {"9": {"1": 123456}}
+
+    def test_oneof_string(self, db: MySQLConnection):
+        message = oneof_pb2.OneOfMessage()
+        message.name = 'a string'
+
+        assert self.jsonformat(db, message.SerializeToString()) == {"4": "a string"}

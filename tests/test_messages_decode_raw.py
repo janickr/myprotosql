@@ -1,10 +1,11 @@
 
 import json
-import simple_message_pb2 as simple_message_pb2
-import string_message_pb2 as string_message_pb2
-import repeated_fields_pb2 as repeated_fields_pb2
-import submessage_pb2 as submessage_pb2
-import group_pb2 as group_pb2
+import simple_message_pb2
+import string_message_pb2
+import repeated_fields_pb2
+import submessage_pb2
+import group_pb2
+import oneof_pb2
 from mysql.connector import MySQLConnection
 
 
@@ -169,4 +170,40 @@ class TestDecodeRawMessages:
                      'path': '$.1',
                      'type': 'field',
                      'value': 123456}
+                ])
+
+    def test_oneof_submessage(self, db:  MySQLConnection):
+        message = oneof_pb2.OneOfMessage()
+        message.sub_message.a = 123456
+
+        assert (self.decode_raw(db, message.SerializeToString()) ==
+                [
+                    {'depth': 0,
+                     'field_name': None,
+                     'field_number': 9,
+                     'message_type': None,
+                     'path': '$',
+                     'type': 'message'},
+                    {'depth': 1,
+                     'field_name': None,
+                     'field_number': 1,
+                     'field_type': None,
+                     'path': '$.9',
+                     'type': 'field',
+                     'value': 123456}
+                ])
+
+    def test_oneof_string(self, db:  MySQLConnection):
+        message = oneof_pb2.OneOfMessage()
+        message.name = 'a string'
+
+        assert (self.decode_raw(db, message.SerializeToString()) ==
+                [
+                    {'depth': 0,
+                     'field_name': None,
+                     'field_number': 4,
+                     'field_type': None,
+                     'path': '$',
+                     'type': 'field',
+                     'value': 'a string'}
                 ])
