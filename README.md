@@ -10,7 +10,8 @@ A set of mysql stored functions/procedures to read protobuf binary data
 
 - packed repeated fields
 - enums
-- json
+- json (repeated fields)
 - prototext
 - todos in code
 - oneof
+- maps?

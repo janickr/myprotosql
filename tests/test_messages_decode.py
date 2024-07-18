@@ -18,7 +18,7 @@ class TestDecodeMessages:
             cursor.execute("select _myproto_flatten_message(%s, %s, myproto_descriptors())", (p_bytes, p_message_type))
             return json.loads(cursor.fetchone()[0])
 
-    def test_simple_message_decode(self, db:  MySQLConnection):
+    def test_simple_message(self, db:  MySQLConnection):
         message = simple_message_pb2.SimpleMessage()
         message.a = 123456
         assert (self.decode(db, message.SerializeToString(), '.SimpleMessage') ==

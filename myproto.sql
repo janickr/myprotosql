@@ -438,7 +438,7 @@ BEGIN
     RETURN (cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(last_element, '.type'))) as char) = 'message'
         AND JSON_EXTRACT(p_message, CONCAT(last_element, '.depth')) = p_depth
         AND cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(last_element, '.path'))) as char) = p_parent_path
-        AND JSON_EXTRACT(p_message, CONCAT(last_element, '.field')) = p_field_number);
+        AND JSON_EXTRACT(p_message, CONCAT(last_element, '.field_number')) = p_field_number);
 END
 //
 
@@ -588,5 +588,108 @@ BEGIN
    END WHILE;
 
   return message;
+END;
+//
+
+
+-- todo check textformat spec
+CREATE FUNCTION _myproto_textformat(p_message JSON) returns varchar(10000) deterministic
+BEGIN
+    DECLARE length integer DEFAULT JSON_LENGTH(p_message);
+    DECLARE i, depth, previous_depth integer default 0;
+    DECLARE textformat varchar(10000) default '';
+    DECLARE next_element varchar(50) default CONCAT('$[',i,']');
+    DECLARE type varchar(10);
+    DECLARE field_number integer;
+    DECLARE field_name, value varchar(1000);
+    WHILE i < length DO
+        SET type = cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(next_element,'.type'))) as char);
+        SET depth = JSON_EXTRACT(p_message, CONCAT(next_element, '.depth'));
+        SET field_number = JSON_EXTRACT(p_message, CONCAT(next_element, '.field_number'));
+        SET field_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_name')));
+        IF previous_depth > depth THEN
+            SET textformat = CONCAT(textformat, SPACE(depth), '}\n');
+        END IF;
+        IF type = 'field' THEN
+            SET value = cast(JSON_EXTRACT(p_message, CONCAT(next_element, '.value')) as char);
+            SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', value, '\n');
+        ELSE
+            SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', '{\n');
+        END IF;
+
+        SET previous_depth = depth;
+        SET i = i+1;
+        SET next_element = CONCAT('$[',i,']');
+    END WHILE;
+    WHILE previous_depth > 0 DO
+        SET previous_depth = previous_depth - 1;
+        SET textformat = CONCAT(textformat, SPACE(previous_depth), '}\n');
+    END WHILE;
+    RETURN textformat;
+END;
+//
+
+CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path varchar(1000), IN p_field_number integer, IN p_field_name varchar(1000), IN p_value JSON, OUT p_new_path varchar(1000))
+BEGIN
+    DECLARE name varchar(1000) default IFNULL(p_field_name, CONCAT('"',p_field_number, '"'));
+    DECLARE path varchar(1000) default CONCAT(REVERSE(p_path), '.', name);
+    DECLARE existing_object_or_array JSON default JSON_EXTRACT(p_jsonformat, path);
+    IF JSON_TYPE(existing_object_or_array) IS NULL THEN
+        SET p_jsonformat = JSON_SET(p_jsonformat, path, p_value);
+        SET p_new_path = REVERSE(path);
+    ELSEIF JSON_TYPE(existing_object_or_array) = 'ARRAY' THEN
+        SET p_jsonformat = JSON_ARRAY_APPEND(p_jsonformat, path, p_value);
+        SET p_new_path = REVERSE(CONCAT(path, '[', JSON_LENGTH(p_jsonformat, path)-1, ']'));
+    ELSE
+        SET p_jsonformat = JSON_REPLACE(p_jsonformat, path,JSON_ARRAY(existing_object_or_array, p_value));
+        SET p_new_path = REVERSE(CONCAT(path, '[1]'));
+    END IF;
+
+END;
+//
+
+CREATE FUNCTION _myproto_jsonformat(p_message JSON) returns varchar(10000) deterministic
+BEGIN
+    DECLARE length integer DEFAULT JSON_LENGTH(p_message);
+    DECLARE i, depth, previous_depth integer default 0;
+    DECLARE jsonformat JSON default JSON_OBJECT();
+    DECLARE path, not_needed varchar(1000) default '$';
+    DECLARE next_element varchar(50) default CONCAT('$[',i,']');
+    DECLARE type varchar(10);
+    DECLARE field_number integer;
+    DECLARE field_name varchar(1000);
+    DECLARE value JSON;
+    WHILE i < length DO
+        SET type = cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(next_element,'.type'))) as char);
+        SET depth = JSON_EXTRACT(p_message, CONCAT(next_element, '.depth'));
+        SET field_number = JSON_EXTRACT(p_message, CONCAT(next_element, '.field_number'));
+        SET field_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_name')));
+        IF previous_depth > depth THEN
+            SET path = SUBSTRING(path, LOCATE('.', path)+1);
+        END IF;
+        IF type = 'field' THEN
+            SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
+            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, value, not_needed);
+        ELSE
+            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, JSON_OBJECT(), path);
+        END IF;
+
+        SET previous_depth = depth;
+        SET i = i+1;
+        SET next_element = CONCAT('$[',i,']');
+    END WHILE;
+
+    RETURN jsonformat;
+END;
+//
+
+CREATE FUNCTION myproto_decode_to_textformat(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns varchar(10000) deterministic
+BEGIN
+    RETURN _myproto_textformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));
+END;
+//
+CREATE FUNCTION myproto_decode_to_jsonformat(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns varchar(10000) deterministic
+BEGIN
+    RETURN _myproto_jsonformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));
 END;
 //
