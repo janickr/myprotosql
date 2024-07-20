@@ -8,7 +8,7 @@ import oneof_pb2
 from mysql.connector import MySQLConnection
 
 
-class TestDecodeTextFormat:
+class TestDecodeJsonFormat:
 
     def jsonformat(self, connection, p_bytes, p_message_type):
         with connection.cursor() as cursor:
@@ -35,6 +35,32 @@ class TestDecodeTextFormat:
         assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"d": "123", "e": [1, 2, 3]}
 
 
+    def test_repeated_fields_one_element(self, db:  MySQLConnection):
+        message = repeated_fields_pb2.RepeatedFields()
+        message.d = '123'
+        message.e.append(1)
+
+        assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"d": "123", "e": [1]}
+
+    def test_repeated_fields_submessage(self, db:  MySQLConnection):
+        message = repeated_fields_pb2.RepeatedFields()
+        g1 = message.g.add()
+        g1.a = 1
+        g2 = message.g.add()
+        g2.a = 2
+
+        assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"g": [{"a":1}, {"a":2}]}
+
+
+    def test_repeated_fields_one_submessage(self, db:  MySQLConnection):
+        message = repeated_fields_pb2.RepeatedFields()
+        g1 = message.g.add()
+        g1.a = 1
+
+        assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"g": [{"a":1}]}
+
+
+
     def test_submessage(self, db:  MySQLConnection):
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456
@@ -52,7 +78,7 @@ class TestDecodeTextFormat:
         message = oneof_pb2.OneOfMessage()
         message.sub_message.a = 123456
 
-        assert self.jsonformat(db, message.SerializeToString(), '.OneOfMessage') == {"sub_message": {"a": 123456}}
+        assert self.jsonformat(db, message.SerializeToString(), '.OneOfMessage') == {"subMessage": {"a": 123456}}
 
     def test_oneof_string(self, db: MySQLConnection):
         message = oneof_pb2.OneOfMessage()

@@ -35,6 +35,31 @@ class TestDecodeRawJsonFormat:
         assert self.jsonformat(db, message.SerializeToString()) == {"4": "123", "5": [1, 2, 3]}
 
 
+    def test_repeated_fields_one_element(self, db:  MySQLConnection):
+        message = repeated_fields_pb2.RepeatedFields()
+        message.d = '123'
+        message.e.append(1)
+
+        assert self.jsonformat(db, message.SerializeToString()) == {"4": "123", "5": 1}
+
+    def test_repeated_fields_submessage(self, db:  MySQLConnection):
+        message = repeated_fields_pb2.RepeatedFields()
+        g1 = message.g.add()
+        g1.a = 1
+        g2 = message.g.add()
+        g2.a = 2
+
+        assert self.jsonformat(db, message.SerializeToString()) == {"7": [{"1":1}, {"1":2}]}
+
+    def test_repeated_fields_one_submessage(self, db:  MySQLConnection):
+        message = repeated_fields_pb2.RepeatedFields()
+        g1 = message.g.add()
+        g1.a = 1
+
+        assert self.jsonformat(db, message.SerializeToString()) == {"7": {"1":1}}
+
+
+
     def test_submessage(self, db:  MySQLConnection):
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456

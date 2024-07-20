@@ -2,4 +2,9 @@
 message RepeatedFields {
   optional string d = 4;
   repeated int32 e = 5;
+  repeated RepeatedFieldsSubMessage g = 7;
+}
+
+message RepeatedFieldsSubMessage {
+  optional int32 a = 1;
 }

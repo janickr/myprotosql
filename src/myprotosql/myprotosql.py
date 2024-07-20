@@ -6,15 +6,17 @@ from google.protobuf import descriptor_pb2
 from google.protobuf.json_format import MessageToJson
 
 
-def fqn(proto_file:  descriptor_pb2.FileDescriptorProto, message_type):
-    if proto_file.package:
-        return '.' + proto_file.package + '.' + message_type.name
-    else:
-        return '.' + message_type.name
-
-
 def field_descriptor(field):
-    return json.loads(MessageToJson(field))
+    file_properties = json.loads(MessageToJson(field))
+    return {
+              "name": file_properties['name'],
+              "number": file_properties['number'],
+              "repeated": file_properties['label'] == "LABEL_REPEATED",
+              "packed": file_properties.get('options', {}).get('packed', False),
+              "type": file_properties['type'],
+              "typeName": file_properties.get('typeName', None),
+              "jsonName": file_properties['jsonName']
+            }
 
 
 def descriptor(proto_file:  descriptor_pb2.FileDescriptorProto, message_type):

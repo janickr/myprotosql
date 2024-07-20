@@ -11,3 +11,4 @@ A set of mysql stored functions/procedures to read protobuf binary data
 - enums
 - todos in code
 - maps?
+- bytes

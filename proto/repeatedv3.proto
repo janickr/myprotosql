@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+message RepeatedV3 {
+  repeated int32 f = 6;
+}

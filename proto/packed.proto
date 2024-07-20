@@ -1,0 +1,3 @@
+message PackedFields {
+  repeated int32 f = 6 [packed=true];
+}

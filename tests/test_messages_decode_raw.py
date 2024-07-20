@@ -22,13 +22,15 @@ class TestDecodeRawMessages:
         assert (self.decode_raw(db, message.SerializeToString()) ==
                 [
                     {
-                        "path": "$",
-                        "type": "field",
-                        "depth": 0,
-                        "value": 123456,
-                        "field_name": None,
-                        "field_type": None,
-                        "field_number": 1
+                        'path': '$',
+                        'type': 'field',
+                        'depth': 0,
+                        'value': 123456,
+                        'field_name': None,
+                        'field_json_name': None,
+                        'repeated': False,
+                        'field_type': None,
+                        'field_number': 1
                     }
                 ])
 
@@ -38,13 +40,15 @@ class TestDecodeRawMessages:
         assert (self.decode_raw(db, message.SerializeToString()) ==
                 [
                     {
-                        "path": "$",
-                        "type": "field",
-                        "depth": 0,
-                        "value": "Hello World!",
-                        "field_name": None,
-                        "field_type": None,
-                        "field_number": 2
+                        'path': '$',
+                        'type': 'field',
+                        'depth': 0,
+                        'value': 'Hello World!',
+                        'field_name': None,
+                        'field_json_name': None,
+                        'repeated': False,
+                        'field_type': None,
+                        'field_number': 2
                     }
                 ])
 
@@ -54,13 +58,15 @@ class TestDecodeRawMessages:
         assert (self.decode_raw(db, message.SerializeToString()) ==
                 [
                     {
-                        "path": "$",
-                        "type": "field",
-                        "depth": 0,
-                        "value": "Repeated!",
-                        "field_name": None,
-                        "field_type": None,
-                        "field_number": 2
+                        'path': '$',
+                        'type': 'field',
+                        'depth': 0,
+                        'value': 'Repeated!',
+                        'field_name': None,
+                        'field_json_name': None,
+                        'repeated': False,
+                        'field_type': None,
+                        'field_number': 2
                     }
                 ])
 
@@ -74,13 +80,17 @@ class TestDecodeRawMessages:
         assert (self.decode_raw(db, message.SerializeToString()) ==
                 [{'depth': 0,
                   'field_name': None,
+                  'field_json_name': None,
+                  'repeated': False,
                   'field_number': 4,
                   'field_type': None,
                   'path': '$',
                   'type': 'field',
                   'value': '123'},
-                {'depth': 0,
+                 {'depth': 0,
                   'field_name': None,
+                  'field_json_name': None,
+                  'repeated': False,
                   'field_number': 5,
                   'field_type': None,
                   'path': '$',
@@ -88,6 +98,8 @@ class TestDecodeRawMessages:
                   'value': 1},
                  {'depth': 0,
                   'field_name': None,
+                  'field_json_name': None,
+                  'repeated': False,
                   'field_number': 5,
                   'field_type': None,
                   'path': '$',
@@ -95,6 +107,8 @@ class TestDecodeRawMessages:
                   'value': 2},
                  {'depth': 0,
                   'field_name': None,
+                  'field_json_name': None,
+                  'repeated': False,
                   'field_number': 5,
                   'field_type': None,
                   'path': '$',
@@ -109,18 +123,65 @@ class TestDecodeRawMessages:
         assert (self.decode_raw(db, message.SerializeToString()) ==
                 [{'depth': 0,
                   'field_name': None,
+                  'field_json_name': None,
+                  'repeated': False,
                   'field_number': 4,
                   'field_type': None,
                   'path': '$',
                   'type': 'field',
                   'value': 'Repeated!'},
-                {'depth': 0,
+                 {'depth': 0,
                   'field_name': None,
+                  'field_json_name': None,
+                  'repeated': False,
                   'field_number': 5,
                   'field_type': None,
                   'path': '$',
                   'type': 'field',
                   'value': 1}])
+
+    def test_repeated_fields_submessage(self, db:  MySQLConnection):
+        message = repeated_fields_pb2.RepeatedFields()
+        g1 = message.g.add()
+        g1.a = 1
+        g2 = message.g.add()
+        g2.a = 2
+
+        assert (self.decode_raw(db, message.SerializeToString()) ==
+                [{'depth': 0,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 7,
+                  'message_type': None,
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'message'},
+                 {'depth': 1,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 1,
+                  'field_type': None,
+                  'path': '$.7',
+                  'repeated': False,
+                  'type': 'field',
+                  'value': 1},
+                 {'depth': 0,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 7,
+                  'message_type': None,
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'message'},
+                 {'depth': 1,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 1,
+                  'field_type': None,
+                  'path': '$.7',
+                  'repeated': False,
+                  'type': 'field',
+                  'value': 2}])
 
     def test_submessage(self, db:  MySQLConnection):
         message = submessage_pb2.ParentMessage()
@@ -130,12 +191,16 @@ class TestDecodeRawMessages:
                 [
                     {'depth': 0,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 3,
                      'message_type': None,
                      'path': '$',
                      'type': 'message'},
                     {'depth': 1,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 1,
                      'field_type': None,
                      'path': '$.3',
@@ -152,12 +217,16 @@ class TestDecodeRawMessages:
                 [
                     {'depth': 0,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 1,
                      'message_type': None,
                      'path': '$',
                      'type': 'message'},
                     {'depth': 1,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 1,
                      'field_type': None,
                      'path': '$.1',
@@ -165,6 +234,8 @@ class TestDecodeRawMessages:
                      'value': 'a group'},
                     {'depth': 1,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 2,
                      'field_type': None,
                      'path': '$.1',
@@ -180,12 +251,16 @@ class TestDecodeRawMessages:
                 [
                     {'depth': 0,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 9,
                      'message_type': None,
                      'path': '$',
                      'type': 'message'},
                     {'depth': 1,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 1,
                      'field_type': None,
                      'path': '$.9',
@@ -201,6 +276,8 @@ class TestDecodeRawMessages:
                 [
                     {'depth': 0,
                      'field_name': None,
+                     'field_json_name': None,
+                     'repeated': False,
                      'field_number': 4,
                      'field_type': None,
                      'path': '$',
