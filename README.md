@@ -12,3 +12,4 @@ A set of mysql stored functions/procedures to read protobuf binary data
 - todos in code
 - maps?
 - bytes
+- proto v3 default packed

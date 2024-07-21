@@ -11,6 +11,37 @@ create function _myproto_unquote(p_json_string_or_null JSON) returns varchar(100
     END;
 //
 
+create function _myproto_is_scalar(p_field_type varchar(1000)) returns boolean deterministic
+    BEGIN
+        RETURN p_field_type like 'TYPE_INT%'
+                OR p_field_type like 'TYPE_UINT%'
+                OR p_field_type like 'TYPE_SINT%'
+                OR p_field_type like 'TYPE_BOOL'
+                OR p_field_type like 'TYPE_FIXED%'
+                OR p_field_type like 'TYPE_FLOAT'
+                OR p_field_type like 'TYPE_DOUBLE';
+    END;
+//
+
+create function _myproto_field_type_to_wiretype(p_field_type varchar(1000)) returns boolean deterministic
+    BEGIN
+        DECLARE type_not_supported varchar(128) default CONCAT('Field type to wiretype mapping only supported for scalar types, not for ', p_field_type);
+
+        IF p_field_type like 'TYPE_INT%'
+                OR p_field_type like 'TYPE_UINT%'
+                OR p_field_type like 'TYPE_SINT%'
+                OR p_field_type like 'TYPE_BOOL' THEN
+            RETURN 0;
+        ELSEIF p_field_type like 'TYPE_FIXED32' OR p_field_type like 'TYPE_FLOAT' THEN
+            RETURN 5;
+        ELSEIF p_field_type like 'TYPE_FIXED64' OR p_field_type like 'TYPE_DOUBLE' THEN
+            RETURN 1;
+        ELSE
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = type_not_supported;
+        END IF;
+    END;
+//
+
 
 CREATE PROCEDURE var_int(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_result bigint unsigned)
 BEGIN
@@ -100,6 +131,38 @@ BEGIN
   ELSE
     SET p_value = JSON_QUOTE(cast(substr(p_bytes, p_offset, length) as char));
     SET p_offset = p_offset + length;
+  END IF;
+END;
+//
+
+CREATE PROCEDURE _myproto_packed_scalar(
+    IN p_bytes varbinary(10000),
+    INOUT p_offset integer,
+    IN p_limit integer,
+    INOUT p_message JSON,
+    IN p_depth integer,
+    IN p_parent_path varchar(1000),
+    IN p_field_number integer,
+    IN p_field_name varchar(1000),
+    IN p_field_json_name varchar(1000),
+    IN p_field_type varchar(1000))
+BEGIN
+  DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
+
+  DECLARE wiretype integer default _myproto_field_type_to_wiretype(p_field_type);
+  DECLARE length integer;
+  DECLARE offset integer;
+  DECLARE value JSON;
+  CALL var_int(p_bytes, p_offset, p_limit, length);
+  SET offset = p_offset;
+  IF p_offset + length > p_limit THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
+  ELSE
+    WHILE offset < p_offset + length DO
+        CALL _myproto_get_number_field_value(p_bytes, offset, p_offset + length, wiretype, value, p_field_type);
+        CALL _myproto_append_path_value(p_message, p_depth, p_parent_path, p_field_number, p_field_name, p_field_json_name, p_field_type, True, value);
+    END WHILE;
+    SET p_offset = offset;
   END IF;
 END;
 //
@@ -470,7 +533,7 @@ BEGIN
   IF NOT(
       (p_wiretype = 0 AND p_field_type IN ('TYPE_INT32', 'TYPE_INT64', 'TYPE_UINT32', 'TYPE_UINT64', 'TYPE_SINT32', 'TYPE_SINT64', 'TYPE_BOOL', 'TYPE_ENUM'))
       OR (p_wiretype = 1 AND p_field_type IN ('TYPE_FIXED64', 'TYPE_SFIXED64', 'TYPE_DOUBLE'))
-      OR (p_wiretype = 2 AND p_field_type IN ('TYPE_STRING', 'TYPE_BYTES', 'TYPE_MESSAGE'))
+      OR (p_wiretype = 2) -- AND p_field_type IN ('TYPE_STRING', 'TYPE_BYTES', 'TYPE_MESSAGE')) todo or packed scalar
       OR (p_wiretype = 3 AND p_field_type = 'TYPE_GROUP')
       OR (p_wiretype = 4) -- AND p_field_type = 'TYPE_GROUP') todo figure out a way to validate egroup
       OR (p_wiretype = 5 AND p_field_type IN ('TYPE_FIXED32', 'TYPE_SFIXED32', 'TYPE_FLOAT'))
@@ -562,7 +625,7 @@ BEGIN
           BEGIN
             DECLARE EXIT HANDLER FOR SQLSTATE '45000'
             BEGIN
-               CALL _myproto_recover_from_error(p_bytes, stack, message, offset,m_limit, parent_path, field_number, field_name, field_json_name, message_type);
+                CALL _myproto_recover_from_error(p_bytes, stack, message, offset,m_limit, parent_path, field_number, field_name, field_json_name, message_type);
             END;
 
             CALL _myproto_get_field_and_wiretype(p_bytes, offset, m_limit, field_number, wiretype);
@@ -573,6 +636,8 @@ BEGIN
                     CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, sub_message_type, repeated);
                     CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, message_type, sub_message_type);
                     CALL _myproto_len_limit(p_bytes, offset, m_limit);
+                ELSEIF repeated AND packed AND _myproto_is_scalar(field_type) THEN
+                    CALL _myproto_packed_scalar(p_bytes, offset, m_limit, message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type);
                 ELSE
                     CALL get_len_value(p_bytes, offset, m_limit, value);
                     CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, repeated, value);
@@ -623,8 +688,12 @@ BEGIN
             SET textformat = CONCAT(textformat, SPACE(depth), '}\n');
         END IF;
         IF type = 'field' THEN
-            SET value = cast(JSON_EXTRACT(p_message, CONCAT(next_element, '.value')) as char);
-            SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', value, '\n');
+            SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
+            IF JSON_TYPE(value) = 'STRING' THEN
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': "', JSON_UNQUOTE(value), '"\n');
+            ELSE
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', value, '\n');
+            END IF;
         ELSE
             SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', '{\n');
         END IF;

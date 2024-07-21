@@ -5,6 +5,7 @@ import repeated_fields_pb2
 import submessage_pb2
 import group_pb2
 import oneof_pb2
+import packed_pb2
 from mysql.connector import MySQLConnection
 
 
@@ -84,3 +85,12 @@ class TestDecodeRawJsonFormat:
         message.name = 'a string'
 
         assert self.jsonformat(db, message.SerializeToString()) == {"4": "a string"}
+
+
+    def test_packed_repeated_fields_cannot_be_recognized_as_such(self, db:  MySQLConnection):
+        message = packed_pb2.PackedFields()
+        message.f.append(1)
+        message.f.append(2)
+        message.f.append(3)
+
+        assert self.jsonformat(db, message.SerializeToString()) == {"6": "\x01\x02\x03"}

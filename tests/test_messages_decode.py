@@ -4,6 +4,7 @@ import string_message_pb2
 import repeated_fields_pb2
 import submessage_pb2
 import group_pb2
+import packed_pb2
 import oneof_pb2
 import packages_submessage_pb2
 import imports_parentmessage_pb2
@@ -364,3 +365,39 @@ class TestDecodeMessages:
                      'type': 'field',
                      'value': 'a string'}
                 ])
+
+    def test_packed_repeated_fields(self, db:  MySQLConnection):
+        message = packed_pb2.PackedFields()
+        message.f.append(1)
+        message.f.append(2)
+        message.f.append(3)
+
+        assert (self.decode(db, message.SerializeToString(), '.PackedFields') ==
+                [{'depth': 0,
+                  'field_name': 'f',
+                  'field_json_name': 'f',
+                  'repeated': True,
+                  'field_number': 6,
+                  'field_type': 'TYPE_INT32',
+                  'path': '$',
+                  'type': 'field',
+                  'value': 1},
+                 {'depth': 0,
+                  'field_name': 'f',
+                  'field_json_name': 'f',
+                  'repeated': True,
+                  'field_number': 6,
+                  'field_type': 'TYPE_INT32',
+                  'path': '$',
+                  'type': 'field',
+                  'value': 2},
+                 {'depth': 0,
+                  'field_name': 'f',
+                  'field_json_name': 'f',
+                  'repeated': True,
+                  'field_number': 6,
+                  'field_type': 'TYPE_INT32',
+                  'path': '$',
+                  'type': 'field',
+                  'value': 3},
+                 ])
