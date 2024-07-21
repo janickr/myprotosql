@@ -12,7 +12,7 @@ class TestI32:
 
     def get_i32_value(self, connection, p_bytes, p_offset, p_limit):
         with connection.cursor() as cursor:
-            result = cursor.callproc('get_i32_value', (p_bytes, p_offset, p_limit, 0))
+            result = cursor.callproc('_myproto_get_i32_value', (p_bytes, p_offset, p_limit, 0))
             return TestI32.I32Result(result[1], result[3])
 
     def test_zero(self, db:  MySQLConnection):

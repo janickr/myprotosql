@@ -1,3 +1,41 @@
+DROP FUNCTION IF EXISTS myproto_decode_to_jsonformat;
+DROP FUNCTION IF EXISTS myproto_decode_to_textformat;
+DROP FUNCTION IF EXISTS _myproto_field_type_to_wiretype;
+DROP FUNCTION IF EXISTS _myproto_flatten_message;
+DROP FUNCTION IF EXISTS _myproto_is_frame_field;
+DROP FUNCTION IF EXISTS _myproto_is_scalar;
+DROP FUNCTION IF EXISTS _myproto_is_start_submessage;
+DROP FUNCTION IF EXISTS _myproto_jsonformat;
+DROP FUNCTION IF EXISTS _myproto_reinterpret_as_double;
+DROP FUNCTION IF EXISTS _myproto_reinterpret_as_float;
+DROP FUNCTION IF EXISTS _myproto_textformat;
+DROP FUNCTION IF EXISTS _myproto_unquote;
+DROP FUNCTION IF EXISTS _myproto_wiretype_egroup;
+DROP FUNCTION IF EXISTS _myproto_wiretype_len;
+DROP FUNCTION IF EXISTS _myproto_wiretype_sgroup;
+DROP PROCEDURE IF EXISTS _myproto_append_path_value;
+DROP PROCEDURE IF EXISTS _myproto_append_start_submessage;
+DROP PROCEDURE IF EXISTS _myproto_get_field_and_wiretype;
+DROP PROCEDURE IF EXISTS _myproto_get_field_properties;
+DROP PROCEDURE IF EXISTS _myproto_get_field_value;
+DROP PROCEDURE IF EXISTS _myproto_get_fixed_number_value;
+DROP PROCEDURE IF EXISTS _myproto_get_i32_value;
+DROP PROCEDURE IF EXISTS _myproto_get_i64_value;
+DROP PROCEDURE IF EXISTS _myproto_get_len_value;
+DROP PROCEDURE IF EXISTS _myproto_get_number_field_value;
+DROP PROCEDURE IF EXISTS _myproto_interpret_int32_value;
+DROP PROCEDURE IF EXISTS _myproto_interpret_int64_value;
+DROP PROCEDURE IF EXISTS _myproto_interpret_varint_value;
+DROP PROCEDURE IF EXISTS _myproto_json_add_value;
+DROP PROCEDURE IF EXISTS _myproto_len_limit;
+DROP PROCEDURE IF EXISTS _myproto_packed_scalar;
+DROP PROCEDURE IF EXISTS _myproto_pop_frame;
+DROP PROCEDURE IF EXISTS _myproto_pop_frame_and_reset;
+DROP PROCEDURE IF EXISTS _myproto_push_frame;
+DROP PROCEDURE IF EXISTS _myproto_recover_from_error;
+DROP PROCEDURE IF EXISTS _myproto_undo_appended_fields;
+DROP PROCEDURE IF EXISTS _myproto_validate_wiretype_and_field_type;
+DROP PROCEDURE IF EXISTS _myproto_var_int;
 
 
 delimiter //
@@ -43,7 +81,7 @@ create function _myproto_field_type_to_wiretype(p_field_type varchar(1000)) retu
 //
 
 
-CREATE PROCEDURE var_int(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_result bigint unsigned)
+CREATE PROCEDURE _myproto_var_int(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_result bigint unsigned)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('VarInt at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
   DECLARE error_text_too_many_bytes varchar(128) default CONCAT('VarInt at offset ', p_offset, ' has more than 10 bytes');
@@ -78,7 +116,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE get_fixed_number_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_nb_bytes integer, OUT p_value bigint unsigned)
+CREATE PROCEDURE _myproto_get_fixed_number_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_nb_bytes integer, OUT p_value bigint unsigned)
 BEGIN
   DECLARE next varbinary(10000) DEFAULT substr(p_bytes, p_offset);
   DECLARE result bigint unsigned default 0;
@@ -96,36 +134,36 @@ BEGIN
 END
 //
 
-CREATE PROCEDURE get_i32_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
+CREATE PROCEDURE _myproto_get_i32_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
   BEGIN
     DECLARE error_text_exceeds_limit varchar(128) default CONCAT('i32 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
 
     IF p_offset + 4 > p_limit THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
     ELSE
-        CALL get_fixed_number_value(p_bytes, p_offset, 4, p_value);
+        CALL _myproto_get_fixed_number_value(p_bytes, p_offset, 4, p_value);
     END IF;
   END;
 //
 
-CREATE PROCEDURE get_i64_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
+CREATE PROCEDURE _myproto_get_i64_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
   BEGIN
     DECLARE error_text_exceeds_limit varchar(128) default CONCAT('i64 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
 
     IF p_offset + 8 > p_limit THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
     ELSE
-        CALL get_fixed_number_value(p_bytes, p_offset, 8, p_value);
+        CALL _myproto_get_fixed_number_value(p_bytes, p_offset, 8, p_value);
     END IF;
   END;
 //
 
-CREATE PROCEDURE get_len_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value JSON)
+CREATE PROCEDURE _myproto_get_len_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value JSON)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
 
   DECLARE length integer;
-  CALL var_int(p_bytes, p_offset, p_limit, length);
+  CALL _myproto_var_int(p_bytes, p_offset, p_limit, length);
   IF p_offset + length > p_limit THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
   ELSE
@@ -154,7 +192,7 @@ BEGIN
   DECLARE offset integer;
   DECLARE value JSON;
   DECLARE value_list JSON default JSON_ARRAY();
-  CALL var_int(p_bytes, p_offset, p_limit, length);
+  CALL _myproto_var_int(p_bytes, p_offset, p_limit, length);
   SET offset = p_offset;
   IF p_offset + length > p_limit THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
@@ -177,14 +215,14 @@ BEGIN
   DECLARE varint integer;
   CASE p_wiretype
       WHEN 0 THEN
-        CALL var_int(p_bytes, p_offset, p_limit, varint);
+        CALL _myproto_var_int(p_bytes, p_offset, p_limit, varint);
         SET p_value = cast(varint as JSON);
       WHEN 1 THEN
-        CALL get_i64_value(p_bytes, p_offset, p_limit, p_value);
+        CALL _myproto_get_i64_value(p_bytes, p_offset, p_limit, p_value);
       WHEN 5 THEN
-        CALL get_i32_value(p_bytes, p_offset, p_limit, p_value);
+        CALL _myproto_get_i32_value(p_bytes, p_offset, p_limit, p_value);
       WHEN 2 THEN
-        CALL get_len_value(p_bytes, p_offset, p_limit, p_value);
+        CALL _myproto_get_len_value(p_bytes, p_offset, p_limit, p_value);
       ELSE
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = error_text;
@@ -346,13 +384,13 @@ BEGIN
   DECLARE int_result bigint unsigned;
   CASE p_wiretype
       WHEN 0 THEN
-        CALL var_int(p_bytes, p_offset, p_limit, int_result);
+        CALL _myproto_var_int(p_bytes, p_offset, p_limit, int_result);
         CALL _myproto_interpret_varint_value(p_field_type, int_result, p_value);
       WHEN 1 THEN
-        CALL get_i64_value(p_bytes, p_offset, p_limit, int_result);
+        CALL _myproto_get_i64_value(p_bytes, p_offset, p_limit, int_result);
         CALL _myproto_interpret_int64_value(p_field_type, int_result, p_value);
       WHEN 5 THEN
-        CALL get_i32_value(p_bytes, p_offset, p_limit, int_result);
+        CALL _myproto_get_i32_value(p_bytes, p_offset, p_limit, int_result);
         CALL _myproto_interpret_int32_value(p_field_type, int_result, p_value);
       ELSE
         SIGNAL SQLSTATE '45000'
@@ -434,7 +472,7 @@ CREATE PROCEDURE _myproto_get_field_and_wiretype(IN p_bytes varbinary(10000), IN
 BEGIN
   DECLARE field_wiretype integer;
 
-  CALL var_int(p_bytes, p_offset, p_limit, field_wiretype);
+  CALL _myproto_var_int(p_bytes, p_offset, p_limit, field_wiretype);
   SET p_wiretype = field_wiretype & 0x07;
   SET p_field_number = (field_wiretype >> 3) & 0x1f;
 END;
@@ -445,7 +483,7 @@ BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
 
   DECLARE value integer;
-  CALL var_int(p_bytes, p_offset, p_limit, value);
+  CALL _myproto_var_int(p_bytes, p_offset, p_limit, value);
   IF p_offset + value > p_limit THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
   ELSE
@@ -597,7 +635,7 @@ BEGIN
             CALL _myproto_pop_frame_and_reset(p_stack, p_offset,p_limit, p_path, p_field_number, p_field_name, p_message_type);
             CALL _myproto_undo_appended_fields(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number);
             SET in_error_state = false;
-            CALL get_len_value(p_bytes, p_offset, p_limit, value);
+            CALL _myproto_get_len_value(p_bytes, p_offset, p_limit, value);
             IF not in_error_state THEN
                 CALL _myproto_append_path_value(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number, p_field_name, p_field_json_name, NULL, NULL, value);
             END IF;
@@ -642,7 +680,7 @@ BEGIN
                 ELSEIF repeated AND packed AND _myproto_is_scalar(field_type) THEN
                     CALL _myproto_packed_scalar(p_bytes, offset, m_limit, message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type);
                 ELSE
-                    CALL get_len_value(p_bytes, offset, m_limit, value);
+                    CALL _myproto_get_len_value(p_bytes, offset, m_limit, value);
                     CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, repeated, value);
                 END IF;
             ELSEIF _myproto_wiretype_sgroup(wiretype) THEN

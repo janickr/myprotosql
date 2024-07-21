@@ -12,7 +12,7 @@ class TestVarInt:
 
     def varint(self, connection, p_bytes, p_offset, p_limit):
         with connection.cursor() as cursor:
-            result = cursor.callproc('var_int', (p_bytes, p_offset, p_limit, 0))
+            result = cursor.callproc('_myproto_var_int', (p_bytes, p_offset, p_limit, 0))
             return TestVarInt.VarIntResult(result[1], result[3])
 
     def test_one(self, db:  MySQLConnection):
