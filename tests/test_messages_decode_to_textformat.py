@@ -69,7 +69,7 @@ class TestDecodeTextFormat:
         message.f.append(2)
         message.f.append(3)
 
-        assert self.textformat(db, message.SerializeToString(), '.PackedFields') == 'f: {1 2 3}'
+        assert self.textformat(db, message.SerializeToString(), '.PackedFields') == 'f: {1 2 3}\n'
 
 
     def test_packed_repeatedv3_fields(self, db:  MySQLConnection):
@@ -78,4 +78,4 @@ class TestDecodeTextFormat:
         message.f.append(2)
         message.f.append(3)
 
-        assert self.textformat(db, message.SerializeToString(), '.RepeatedV3') == 'f: {1 2 3}'
+        assert self.textformat(db, message.SerializeToString(), '.RepeatedV3') == 'f: {1 2 3}\n'

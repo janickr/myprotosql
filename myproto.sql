@@ -153,6 +153,7 @@ BEGIN
   DECLARE length integer;
   DECLARE offset integer;
   DECLARE value JSON;
+  DECLARE value_list JSON default JSON_ARRAY();
   CALL var_int(p_bytes, p_offset, p_limit, length);
   SET offset = p_offset;
   IF p_offset + length > p_limit THEN
@@ -160,8 +161,10 @@ BEGIN
   ELSE
     WHILE offset < p_offset + length DO
         CALL _myproto_get_number_field_value(p_bytes, offset, p_offset + length, wiretype, value, p_field_type);
-        CALL _myproto_append_path_value(p_message, p_depth, p_parent_path, p_field_number, p_field_name, p_field_json_name, p_field_type, True, value);
+        SET value_list = JSON_ARRAY_APPEND(value_list, '$', value);
     END WHILE;
+    CALL _myproto_append_path_value(p_message, p_depth, p_parent_path, p_field_number, p_field_name, p_field_json_name, p_field_type, True, value_list);
+
     SET p_offset = offset;
   END IF;
 END;
@@ -691,6 +694,8 @@ BEGIN
             SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
             IF JSON_TYPE(value) = 'STRING' THEN
                 SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': "', JSON_UNQUOTE(value), '"\n');
+            ELSEIF JSON_TYPE(value) = 'ARRAY' THEN
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(REPLACE(REPLACE(cast(value as char), ',', ''), '[', '{'), ']', '}'), '\n');
             ELSE
                 SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', value, '\n');
             END IF;
@@ -715,14 +720,23 @@ BEGIN
     DECLARE name varchar(1000) default IFNULL(p_field_json_name, IFNULL(p_field_name, CONCAT('"',p_field_number, '"')));
     DECLARE path varchar(1000) default CONCAT(REVERSE(p_path), '.', name);
     DECLARE existing_object_or_array JSON default JSON_EXTRACT(p_jsonformat, path);
-    IF JSON_TYPE(existing_object_or_array) IS NULL AND p_repeated THEN
+    IF JSON_TYPE(existing_object_or_array) IS NULL AND p_repeated AND JSON_TYPE(p_value) = 'ARRAY' THEN
+        SET p_jsonformat = JSON_SET(p_jsonformat, path, p_value);
+        SET p_new_path = REVERSE(CONCAT(path, '[',JSON_LENGTH(p_value)-1,']'));
+    ELSEIF JSON_TYPE(existing_object_or_array) IS NULL AND p_repeated THEN
         SET p_jsonformat = JSON_SET(p_jsonformat, path, JSON_ARRAY(p_value));
         SET p_new_path = REVERSE(CONCAT(path, '[0]'));
-    ELSEIF JSON_TYPE(existing_object_or_array) IS NULL  AND NOT p_repeated THEN
+    ELSEIF JSON_TYPE(existing_object_or_array) IS NULL AND NOT p_repeated THEN
         SET p_jsonformat = JSON_SET(p_jsonformat, path, p_value);
         SET p_new_path = REVERSE(path);
+    ELSEIF JSON_TYPE(existing_object_or_array) = 'ARRAY' AND JSON_TYPE(p_value) = 'ARRAY' THEN
+        SET p_jsonformat = JSON_SET(p_jsonformat, path, JSON_MERGE_PRESERVE(existing_object_or_array, p_value));
+        SET p_new_path = REVERSE(CONCAT(path, '[', JSON_LENGTH(p_jsonformat, path)-1, ']'));
     ELSEIF JSON_TYPE(existing_object_or_array) = 'ARRAY' THEN
         SET p_jsonformat = JSON_ARRAY_APPEND(p_jsonformat, path, p_value);
+        SET p_new_path = REVERSE(CONCAT(path, '[', JSON_LENGTH(p_jsonformat, path)-1, ']'));
+    ELSEIF JSON_TYPE(p_value) = 'ARRAY' THEN
+        SET p_jsonformat = JSON_SET(p_jsonformat, path, JSON_ARRAY_APPEND(p_value, '$', existing_object_or_array));
         SET p_new_path = REVERSE(CONCAT(path, '[', JSON_LENGTH(p_jsonformat, path)-1, ']'));
     ELSE
         SET p_jsonformat = JSON_REPLACE(p_jsonformat, path, JSON_ARRAY(existing_object_or_array, p_value));
