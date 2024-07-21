@@ -6,41 +6,35 @@ from google.protobuf import descriptor_pb2
 from google.protobuf.json_format import MessageToJson
 
 
-def field_descriptor(field):
+def field_descriptor(field, packed_default):
     file_properties = json.loads(MessageToJson(field))
     return {
               "name": file_properties['name'],
               "number": file_properties['number'],
               "repeated": file_properties['label'] == "LABEL_REPEATED",
-              "packed": file_properties.get('options', {}).get('packed', False),
+              "packed": file_properties.get('options', {}).get('packed', packed_default),
               "type": file_properties['type'],
               "typeName": file_properties.get('typeName', None),
               "jsonName": file_properties['jsonName']
             }
 
 
-def descriptor(proto_file:  descriptor_pb2.FileDescriptorProto, message_type):
-    return {
-        'package': proto_file.package,
-        'name': message_type.name,
-        'fields': {field.number: field_descriptor(field) for field in message_type.field}
-    }
-
-
-def _build_message_type_index(message_type):
-    index = {message_type.name: {'fields': {field.number: field_descriptor(field) for field in message_type.field}}}
+def _build_message_type_index(message_type, packed_default):
+    index = {message_type.name: {'fields': {field.number: field_descriptor(field, packed_default) for field in message_type.field}}}
     for nested_type in message_type.nested_type:
-        index = index | {f'{message_type.name}.{name}': fields for name, fields in _build_message_type_index(nested_type).items()}
+        index = index | {f'{message_type.name}.{name}': fields for name, fields in _build_message_type_index(nested_type, packed_default).items()}
 
     return index
+
 
 def _build_file_index(proto_file):
     index = {}
     for message_type in proto_file.message_type:
+        packed_default = proto_file.syntax == 'proto3'
         if proto_file.package:
-            index = index | {f'.{proto_file.package}.{name}': fields for name, fields in _build_message_type_index(message_type).items()}
+            index = index | {f'.{proto_file.package}.{name}': fields for name, fields in _build_message_type_index(message_type, packed_default).items()}
         else:
-            index = index | {f'.{name}': fields for name, fields in _build_message_type_index(message_type).items()}
+            index = index | {f'.{name}': fields for name, fields in _build_message_type_index(message_type, packed_default).items()}
 
     return index
 
@@ -51,6 +45,7 @@ def _build_index(request):
         index = index | _build_file_index(proto_file)
 
     return index
+
 
 def run_plugin():
     request = plugin.CodeGeneratorRequest.FromString(sys.stdin.buffer.read())

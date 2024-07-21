@@ -5,6 +5,7 @@ import submessage_pb2
 import group_pb2
 import oneof_pb2
 import packed_pb2
+import repeatedv3_pb2
 from mysql.connector import MySQLConnection
 
 
@@ -69,3 +70,12 @@ class TestDecodeTextFormat:
         message.f.append(3)
 
         assert self.textformat(db, message.SerializeToString(), '.PackedFields') == 'f: {1 2 3}'
+
+
+    def test_packed_repeatedv3_fields(self, db:  MySQLConnection):
+        message = repeatedv3_pb2.RepeatedV3()
+        message.f.append(1)
+        message.f.append(2)
+        message.f.append(3)
+
+        assert self.textformat(db, message.SerializeToString(), '.RepeatedV3') == 'f: {1 2 3}'
