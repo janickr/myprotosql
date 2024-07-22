@@ -47,15 +47,10 @@ jobs:
       run: |
         mkdir build
         protoc --proto_path=proto --python_out=build --myprotosql_out=build ./proto/*
-#    - name: Create test_db and user
-#      run: |
-#          mysql -e "CREATE DATABASE IF NOT EXISTS test_db;" -u root -p root
-#          mysql -e "CREATE USER 'test_db'@'localhost' IDENTIFIED BY 'test_db';" -u root -p root
-#          mysql -e "GRANT CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, SELECT, REFERENCES, RELOAD on *.* TO 'test_db'@'localhost' WITH GRANT OPTION;" -u root -p root
     - name: Create the myprotosql stored procedures
       run: |
-          mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ptest_db test_db < ./myproto.sql 
-          mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ptest_db test_db < ./build/myproto_descriptors.sql
+          mysql --host 127.0.0.1 --port 3306 -uroot -ptest_db test_db < ./myproto.sql 
+          mysql --host 127.0.0.1 --port 3306 -uroot -ptest_db test_db < ./build/myproto_descriptors.sql
     - name: Test with pytest
       run: |
         cd tests
