@@ -44,7 +44,7 @@ jobs:
       uses: arduino/setup-protoc@v3
     - name: Compile proto files
       run: |
-        protoc.exe  --proto_path=proto --python_out=build --myprotosql_out=build --plugin=protoc-gen-myprotosql=protoc-gen-myprotosql .\proto\*
+        protoc --proto_path=proto --python_out=build --myprotosql_out=build --plugin=protoc-gen-myprotosql=protoc-gen-myprotosql .\proto\*
 #    - name: Create test_db and user
 #      run: |
 #          mysql -e "CREATE DATABASE IF NOT EXISTS test_db;" -u root -p root
