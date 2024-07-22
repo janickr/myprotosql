@@ -25,4 +25,4 @@ jobs:
         with:
           fetch-depth: 1
       - name: mysql version
-        run: mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ppassword -e "SELECT @@VERSION"
+        run: mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ptest_db -e "SELECT @@VERSION"
