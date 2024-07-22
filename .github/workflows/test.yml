@@ -1,0 +1,60 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test_db
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test_db
+          MYSQL_PASSWORD: test_db
+          log_bin_trust_function_creators: 1
+        ports:
+          - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=10
+    strategy:
+      matrix:
+        python-version: [ "3.9" ]
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements_test.txt ]; then pip install -r requirements_test.txt; fi
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Install module
+      run: |
+        pip install -e .
+    - name: Install protoc
+      uses: arduino/setup-protoc@v3
+    - name: Compile proto files
+      run: |
+        protoc.exe  --proto_path=proto --python_out=build --myprotosql_out=build --plugin=protoc-gen-myprotosql=protoc-gen-myprotosql .\proto\*
+#    - name: Create test_db and user
+#      run: |
+#          mysql -e "CREATE DATABASE IF NOT EXISTS test_db;" -u root -p root
+#          mysql -e "CREATE USER 'test_db'@'localhost' IDENTIFIED BY 'test_db';" -u root -p root
+#          mysql -e "GRANT CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, SELECT, REFERENCES, RELOAD on *.* TO 'test_db'@'localhost' WITH GRANT OPTION;" -u root -p root
+    - name: Create the myprotosql stored procedures
+      run: |
+          mysql -h hostname -u root -p root test_db < ./myproto.sql
+          mysql -h hostname -u root -p root test_db < ./build/myproto_descriptors.sql
+    - name: Test with pytest
+      run: |
+        cd tests
+        pytest
