@@ -25,12 +25,12 @@ jobs:
         pip install build
     - name: Build package
       run: python -m build
-#    - name: Publish package on Test PyPi
-#      uses: pypa/gh-action-pypi-publish@release/v1
-#      with:
-#        repository_url: https://test.pypi.org/legacy/
-#    - name: Publish package on PyPi
-#      uses: pypa/gh-action-pypi-publish@release/v1
+    - name: Publish package on Test PyPi
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository_url: https://test.pypi.org/legacy/
+    - name: Publish package on PyPi
+      uses: pypa/gh-action-pypi-publish@release/v1
     - name: Upload release binaries
       uses: alexellis/upload-assets@0.2.2
       env:

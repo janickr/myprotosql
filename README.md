@@ -1,6 +1,9 @@
 # Myprotosql
 
-A set of mysql stored functions/procedures to read protobuf binary data
+A set of mysql stored functions/procedures to read protobuf binary data  
+
+[![Tests](https://github.com/janickr/myprotosql/actions/workflows/test.yml/badge.svg)](https://github.com/janickr/myprotosql/actions/workflows/test.yml)
+[![PyPi](https://img.shields.io/pypi/v/myprotosql)](https://pypi.org/project/myprotosql/)
 
 ## Getting started
 
