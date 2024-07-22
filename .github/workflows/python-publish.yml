@@ -8,6 +8,7 @@ jobs:
   deploy:
     permissions:
       id-token: write
+      contents: write
     runs-on: ubuntu-20.04
 
     steps:
@@ -22,14 +23,14 @@ jobs:
         pip install build
     - name: Build package
       run: python -m build
-    - name: Publish package on Test PyPi
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        repository_url: https://test.pypi.org/legacy/
-    - name: Publish package on PyPi
-      uses: pypa/gh-action-pypi-publish@release/v1
+#    - name: Publish package on Test PyPi
+#      uses: pypa/gh-action-pypi-publish@release/v1
+#      with:
+#        repository_url: https://test.pypi.org/legacy/
+#    - name: Publish package on PyPi
+#      uses: pypa/gh-action-pypi-publish@release/v1
     - name: Upload release binaries
-      uses: alexellis/upload-assets@0.2.2
+      uses: alexellis/upload-assets@0.4.1
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
