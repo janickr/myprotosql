@@ -1,6 +1,7 @@
 name: Upload Python Package to Test PyPi and PyPi
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
