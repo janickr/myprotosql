@@ -652,7 +652,7 @@ BEGIN
   DECLARE message, stack, value JSON;
   DECLARE parent_path varchar(1000) default '$';
   DECLARE message_type varchar(1000) default '';
-  DECLARE sub_message_type varchar(1000) default p_message_type;
+  DECLARE sub_message_type varchar(1000) default IF(p_message_type IS NULL, NULL, CONCAT('.', p_message_type));
   DECLARE field_type, field_name, field_json_name varchar(1000);
   DECLARE decode_raw boolean default p_message_type IS NULL;
   DECLARE packed, repeated boolean default NULL;

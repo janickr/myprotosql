@@ -23,7 +23,7 @@ class TestDecodeMessages:
     def test_simple_message(self, db:  MySQLConnection):
         message = simple_message_pb2.SimpleMessage()
         message.a = 123456
-        assert (self.decode(db, message.SerializeToString(), '.SimpleMessage') ==
+        assert (self.decode(db, message.SerializeToString(), 'SimpleMessage') ==
                 [
                     {
                         'path': '$',
@@ -41,7 +41,7 @@ class TestDecodeMessages:
     def test_string_message(self, db:  MySQLConnection):
         message = string_message_pb2.StringMessage()
         message.b = 'Hello World!'
-        assert (self.decode(db, message.SerializeToString(), '.StringMessage') ==
+        assert (self.decode(db, message.SerializeToString(), 'StringMessage') ==
                 [
                     {
                         "path": "$",
@@ -59,7 +59,7 @@ class TestDecodeMessages:
     def test_string_message_recover_from_malformed_submessage(self, db:  MySQLConnection):
         message = string_message_pb2.StringMessage()
         message.b = 'Repeated!'
-        assert (self.decode(db, message.SerializeToString(), '.StringMessage') ==
+        assert (self.decode(db, message.SerializeToString(), 'StringMessage') ==
                 [
                     {
                         "path": "$",
@@ -81,7 +81,7 @@ class TestDecodeMessages:
         message.e.append(2)
         message.e.append(3)
 
-        assert (self.decode(db, message.SerializeToString(), '.RepeatedFields') ==
+        assert (self.decode(db, message.SerializeToString(), 'RepeatedFields') ==
                 [{'depth': 0,
                   'field_name': "d",
                   'field_json_name': "d",
@@ -124,7 +124,7 @@ class TestDecodeMessages:
         message.d = 'Repeated!'
         message.e.append(1)
 
-        assert (self.decode(db, message.SerializeToString(), '.RepeatedFields') ==
+        assert (self.decode(db, message.SerializeToString(), 'RepeatedFields') ==
                 [{'depth': 0,
                   'field_name': "d",
                   'field_json_name': "d",
@@ -151,7 +151,7 @@ class TestDecodeMessages:
         g2 = message.g.add()
         g2.a = 2
 
-        assert (self.decode(db, message.SerializeToString(), '.RepeatedFields') ==
+        assert (self.decode(db, message.SerializeToString(), 'RepeatedFields') ==
                 [{'depth': 0,
                   'field_json_name': 'g',
                   'field_name': 'g',
@@ -192,7 +192,7 @@ class TestDecodeMessages:
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456
 
-        assert (self.decode(db, message.SerializeToString(), '.ParentMessage') ==
+        assert (self.decode(db, message.SerializeToString(), 'ParentMessage') ==
                 [
                     {'depth': 0,
                      'field_name': 'c',
@@ -218,7 +218,7 @@ class TestDecodeMessages:
         message.mygroup.a = 'a group'
         message.mygroup.b = 123456
 
-        assert (self.decode(db, message.SerializeToString(), '.GroupMessage') ==
+        assert (self.decode(db, message.SerializeToString(), 'GroupMessage') ==
                 [
                     {'depth': 0,
                      'field_name': 'mygroup',
@@ -252,7 +252,7 @@ class TestDecodeMessages:
         message = packages_submessage_pb2.ParentMessagePackage()
         message.c.a = 123456
 
-        assert (self.decode(db, message.SerializeToString(), '.foo.bar.ParentMessagePackage') ==
+        assert (self.decode(db, message.SerializeToString(), 'foo.bar.ParentMessagePackage') ==
                 [
                     {'depth': 0,
                      'field_name': 'c',
@@ -277,7 +277,7 @@ class TestDecodeMessages:
         message = imports_parentmessage_pb2.ParentMessageImports()
         message.c.a = 123456
 
-        assert (self.decode(db, message.SerializeToString(), '.ParentMessageImports') ==
+        assert (self.decode(db, message.SerializeToString(), 'ParentMessageImports') ==
                 [
                     {'depth': 0,
                      'field_name': 'c',
@@ -303,7 +303,7 @@ class TestDecodeMessages:
         message = packages_imports_parentmessage_pb2.ParentMessagePackageImports()
         message.c.a = 123456
 
-        assert (self.decode(db, message.SerializeToString(), '.foo.bar.imports.parent.ParentMessagePackageImports') ==
+        assert (self.decode(db, message.SerializeToString(), 'foo.bar.imports.parent.ParentMessagePackageImports') ==
                 [
                     {'depth': 0,
                      'field_name': 'c',
@@ -328,7 +328,7 @@ class TestDecodeMessages:
         message = oneof_pb2.OneOfMessage()
         message.sub_message.a = 123456
 
-        assert (self.decode(db, message.SerializeToString(), '.OneOfMessage') ==
+        assert (self.decode(db, message.SerializeToString(), 'OneOfMessage') ==
                 [
                     {'depth': 0,
                      'field_name': 'sub_message',
@@ -353,7 +353,7 @@ class TestDecodeMessages:
         message = oneof_pb2.OneOfMessage()
         message.name = 'a string'
 
-        assert (self.decode(db, message.SerializeToString(), '.OneOfMessage') ==
+        assert (self.decode(db, message.SerializeToString(), 'OneOfMessage') ==
                 [
                     {'depth': 0,
                      'field_name': 'name',
@@ -372,7 +372,7 @@ class TestDecodeMessages:
         message.f.append(2)
         message.f.append(3)
 
-        assert (self.decode(db, message.SerializeToString(), '.PackedFields') ==
+        assert (self.decode(db, message.SerializeToString(), 'PackedFields') ==
                 [{'depth': 0,
                   'field_name': 'f',
                   'field_json_name': 'f',

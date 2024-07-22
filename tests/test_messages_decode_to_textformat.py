@@ -19,12 +19,12 @@ class TestDecodeTextFormat:
     def test_simple_message(self, db:  MySQLConnection):
         message = simple_message_pb2.SimpleMessage()
         message.a = 123456
-        assert self.textformat(db, message.SerializeToString(), '.SimpleMessage') == 'a: 123456\n'
+        assert self.textformat(db, message.SerializeToString(), 'SimpleMessage') == 'a: 123456\n'
 
     def test_string_message(self, db:  MySQLConnection):
         message = string_message_pb2.StringMessage()
         message.b = 'Hello World!'
-        assert self.textformat(db, message.SerializeToString(), '.StringMessage') == 'b: "Hello World!"\n'
+        assert self.textformat(db, message.SerializeToString(), 'StringMessage') == 'b: "Hello World!"\n'
 
     def test_repeated_fields_message(self, db:  MySQLConnection):
         message = repeated_fields_pb2.RepeatedFields()
@@ -33,34 +33,34 @@ class TestDecodeTextFormat:
         message.e.append(2)
         message.e.append(3)
 
-        assert self.textformat(db, message.SerializeToString(), '.RepeatedFields') == 'd: "123"\ne: 1\ne: 2\ne: 3\n'
+        assert self.textformat(db, message.SerializeToString(), 'RepeatedFields') == 'd: "123"\ne: 1\ne: 2\ne: 3\n'
 
 
     def test_submessage(self, db:  MySQLConnection):
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456
 
-        assert self.textformat(db, message.SerializeToString(), '.ParentMessage') == 'c: {\n a: 123456\n}\n'
+        assert self.textformat(db, message.SerializeToString(), 'ParentMessage') == 'c: {\n a: 123456\n}\n'
 
     def test_group(self, db:  MySQLConnection):
         message = group_pb2.GroupMessage()
         message.mygroup.a = 'a group'
         message.mygroup.b = 123456
 
-        assert self.textformat(db, message.SerializeToString(), '.GroupMessage') == 'mygroup: {\n a: "a group"\n b: 123456\n}\n'
+        assert self.textformat(db, message.SerializeToString(), 'GroupMessage') == 'mygroup: {\n a: "a group"\n b: 123456\n}\n'
 
 
     def test_oneof_submessage(self, db: MySQLConnection):
         message = oneof_pb2.OneOfMessage()
         message.sub_message.a = 123456
 
-        assert self.textformat(db, message.SerializeToString(), '.OneOfMessage') == 'sub_message: {\n a: 123456\n}\n'
+        assert self.textformat(db, message.SerializeToString(), 'OneOfMessage') == 'sub_message: {\n a: 123456\n}\n'
 
     def test_oneof_string(self, db: MySQLConnection):
         message = oneof_pb2.OneOfMessage()
         message.name = 'a string'
 
-        assert self.textformat(db, message.SerializeToString(), '.OneOfMessage') == 'name: "a string"\n'
+        assert self.textformat(db, message.SerializeToString(), 'OneOfMessage') == 'name: "a string"\n'
 
 
     def test_packed_repeated_fields(self, db:  MySQLConnection):
@@ -69,7 +69,7 @@ class TestDecodeTextFormat:
         message.f.append(2)
         message.f.append(3)
 
-        assert self.textformat(db, message.SerializeToString(), '.PackedFields') == 'f: {1 2 3}\n'
+        assert self.textformat(db, message.SerializeToString(), 'PackedFields') == 'f: {1 2 3}\n'
 
 
     def test_packed_repeatedv3_fields(self, db:  MySQLConnection):
@@ -78,4 +78,4 @@ class TestDecodeTextFormat:
         message.f.append(2)
         message.f.append(3)
 
-        assert self.textformat(db, message.SerializeToString(), '.RepeatedV3') == 'f: {1 2 3}\n'
+        assert self.textformat(db, message.SerializeToString(), 'RepeatedV3') == 'f: {1 2 3}\n'

@@ -20,12 +20,12 @@ class TestDecodeJsonFormat:
     def test_simple_message(self, db:  MySQLConnection):
         message = simple_message_pb2.SimpleMessage()
         message.a = 123456
-        assert self.jsonformat(db, message.SerializeToString(), '.SimpleMessage') == {"a": 123456}
+        assert self.jsonformat(db, message.SerializeToString(), 'SimpleMessage') == {"a": 123456}
 
     def test_string_message(self, db:  MySQLConnection):
         message = string_message_pb2.StringMessage()
         message.b = 'Hello World!'
-        assert self.jsonformat(db, message.SerializeToString(), '.StringMessage') == {"b": "Hello World!"}
+        assert self.jsonformat(db, message.SerializeToString(), 'StringMessage') == {"b": "Hello World!"}
 
     def test_repeated_fields_message(self, db:  MySQLConnection):
         message = repeated_fields_pb2.RepeatedFields()
@@ -34,7 +34,7 @@ class TestDecodeJsonFormat:
         message.e.append(2)
         message.e.append(3)
 
-        assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"d": "123", "e": [1, 2, 3]}
+        assert self.jsonformat(db, message.SerializeToString(), 'RepeatedFields') == {"d": "123", "e": [1, 2, 3]}
 
 
     def test_repeated_fields_one_element(self, db:  MySQLConnection):
@@ -42,7 +42,7 @@ class TestDecodeJsonFormat:
         message.d = '123'
         message.e.append(1)
 
-        assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"d": "123", "e": [1]}
+        assert self.jsonformat(db, message.SerializeToString(), 'RepeatedFields') == {"d": "123", "e": [1]}
 
     def test_repeated_fields_submessage(self, db:  MySQLConnection):
         message = repeated_fields_pb2.RepeatedFields()
@@ -51,7 +51,7 @@ class TestDecodeJsonFormat:
         g2 = message.g.add()
         g2.a = 2
 
-        assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"g": [{"a":1}, {"a":2}]}
+        assert self.jsonformat(db, message.SerializeToString(), 'RepeatedFields') == {"g": [{"a":1}, {"a":2}]}
 
 
     def test_repeated_fields_one_submessage(self, db:  MySQLConnection):
@@ -59,7 +59,7 @@ class TestDecodeJsonFormat:
         g1 = message.g.add()
         g1.a = 1
 
-        assert self.jsonformat(db, message.SerializeToString(), '.RepeatedFields') == {"g": [{"a":1}]}
+        assert self.jsonformat(db, message.SerializeToString(), 'RepeatedFields') == {"g": [{"a":1}]}
 
 
 
@@ -67,26 +67,26 @@ class TestDecodeJsonFormat:
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456
 
-        assert self.jsonformat(db, message.SerializeToString(), '.ParentMessage') == {"c": {"a": 123456}}
+        assert self.jsonformat(db, message.SerializeToString(), 'ParentMessage') == {"c": {"a": 123456}}
 
     def test_group(self, db:  MySQLConnection):
         message = group_pb2.GroupMessage()
         message.mygroup.a = 'a group'
         message.mygroup.b = 123456
 
-        assert self.jsonformat(db, message.SerializeToString(), '.GroupMessage') == {"mygroup": {"a": "a group", "b": 123456}}
+        assert self.jsonformat(db, message.SerializeToString(), 'GroupMessage') == {"mygroup": {"a": "a group", "b": 123456}}
 
     def test_oneof_submessage(self, db: MySQLConnection):
         message = oneof_pb2.OneOfMessage()
         message.sub_message.a = 123456
 
-        assert self.jsonformat(db, message.SerializeToString(), '.OneOfMessage') == {"subMessage": {"a": 123456}}
+        assert self.jsonformat(db, message.SerializeToString(), 'OneOfMessage') == {"subMessage": {"a": 123456}}
 
     def test_oneof_string(self, db: MySQLConnection):
         message = oneof_pb2.OneOfMessage()
         message.name = 'a string'
 
-        assert self.jsonformat(db, message.SerializeToString(), '.OneOfMessage') == {"name": "a string"}
+        assert self.jsonformat(db, message.SerializeToString(), 'OneOfMessage') == {"name": "a string"}
 
     def test_packed_repeated_fields(self, db:  MySQLConnection):
         message = packed_pb2.PackedFields()
@@ -94,7 +94,7 @@ class TestDecodeJsonFormat:
         message.f.append(2)
         message.f.append(3)
 
-        assert (self.jsonformat(db, message.SerializeToString(), '.PackedFields') == {"f": [1, 2, 3]})
+        assert (self.jsonformat(db, message.SerializeToString(), 'PackedFields') == {"f": [1, 2, 3]})
 
     def test_packed_repeatedv3_fields(self, db:  MySQLConnection):
         message = repeatedv3_pb2.RepeatedV3()
@@ -102,4 +102,4 @@ class TestDecodeJsonFormat:
         message.f.append(2)
         message.f.append(3)
 
-        assert (self.jsonformat(db, message.SerializeToString(), '.RepeatedV3') == {"f": [1, 2, 3]})
+        assert (self.jsonformat(db, message.SerializeToString(), 'RepeatedV3') == {"f": [1, 2, 3]})
