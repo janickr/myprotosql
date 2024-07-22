@@ -31,7 +31,7 @@ jobs:
 #    - name: Publish package on PyPi
 #      uses: pypa/gh-action-pypi-publish@release/v1
     - name: Upload release binaries
-      uses: alexellis/upload-assets@0.4.0
+      uses: alexellis/upload-assets@0.2.2
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
