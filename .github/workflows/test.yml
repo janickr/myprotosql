@@ -54,8 +54,8 @@ jobs:
 #          mysql -e "GRANT CREATE, ALTER, DROP, INSERT, UPDATE, DELETE, SELECT, REFERENCES, RELOAD on *.* TO 'test_db'@'localhost' WITH GRANT OPTION;" -u root -p root
     - name: Create the myprotosql stored procedures
       run: |
-          mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ptest_db < ./myproto.sql 
-          mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ptest_db < ./build/myproto_descriptors.sql
+          mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ptest_db ptest_db < ./myproto.sql 
+          mysql --host 127.0.0.1 --port ${{ job.services.mysql.ports['3306'] }} -uroot -ptest_db ptest_db < ./build/myproto_descriptors.sql
     - name: Test with pytest
       run: |
         cd tests
