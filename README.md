@@ -61,11 +61,17 @@ We need to compile these `*.proto` files in something MySQL can understand.
     ```
 3) Run the plugin using protoc:  
     `protoc  --proto_path=<the-path-to-your-proto-files> --myprotosql_out=<the-output-path> --plugin=protoc-gen-myprotosql=<the-path-to-the-myprotosql-plugin> <the-path-to-your-proto-files>\*`   
-    For example, on Windows if you used Virtualenv, with your proto files located in `.\proto` and your virtual env path is `.\venv`:
-    ```bash
-    .\bin\protoc-27.2-win64\bin\protoc.exe  --proto_path=proto --myprotosql_out=build --plugin=protoc-gen-myprotosql=.\venv\Scripts\protoc-gen-myprotosql.exe .\proto\*
-    ```
-    This will generate a `myproto_descriptors.sql` file. 
+    This will generate a `myproto_descriptors.sql` file.  
+    For example:
+    - on Windows if you used Virtualenv, with your proto files located in `.\proto` and your virtual env path is `.\venv`:
+        ```bash
+        protoc.exe  --proto_path=proto --myprotosql_out=build --plugin=protoc-gen-myprotosql=.\venv\Scripts\protoc-gen-myprotosql.exe .\proto\*
+        ```
+    - on Ubuntu without virtualenv with your proto files located in `./proto`:
+        ```bash
+        protoc  --proto_path=proto --myprotosql_out=build ./proto/*
+        ```
+    
 4) Run the `myproto_descriptors.sql` script in MySQL, this will create a `myproto_descriptors` 
 function which returns the necessary information to decode protobuf data that conforms to the `.proto` files.
 
