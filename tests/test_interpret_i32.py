@@ -38,22 +38,22 @@ class TestInterpretI32:
         assert self.interpret_int32(db, 'TYPE_SFIXED32', 0) == '0'
 
     def test_sfixed_neg1(self, db:  MySQLConnection):
-        assert self.interpret_int32(db, 'TYPE_SFIXED32', 1) == '-1'
+        assert self.interpret_int32(db, 'TYPE_SFIXED32', 0xffffffff) == '-1'
 
     def test_sfixed_neg2(self, db:  MySQLConnection):
-        assert self.interpret_int32(db, 'TYPE_SFIXED32', 3) == '-2'
+        assert self.interpret_int32(db, 'TYPE_SFIXED32', 0xfffffffe) == '-2'
 
     def test_sfixed_1(self, db:  MySQLConnection):
-        assert self.interpret_int32(db, 'TYPE_SFIXED32', 2) == '1'
+        assert self.interpret_int32(db, 'TYPE_SFIXED32', 1) == '1'
 
     def test_sfixed_2(self, db:  MySQLConnection):
-        assert self.interpret_int32(db, 'TYPE_SFIXED32', 4) == '2'
+        assert self.interpret_int32(db, 'TYPE_SFIXED32', 2) == '2'
 
     def test_sfixed_min(self, db:  MySQLConnection):
-        assert self.interpret_int32(db, 'TYPE_SFIXED32', 0xffffffff) == '-2147483648'
+        assert self.interpret_int32(db, 'TYPE_SFIXED32', 0x80000000) == '-2147483648'
 
     def test_sfixed_max(self, db:  MySQLConnection):
-        assert self.interpret_int32(db, 'TYPE_SFIXED32', 0xfffffffe) == '2147483647'
+        assert self.interpret_int32(db, 'TYPE_SFIXED32', 0x7fffffff) == '2147483647'
 
 
     def test_float_smallest_denormalized(self, db:  MySQLConnection):

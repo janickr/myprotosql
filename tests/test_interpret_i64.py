@@ -38,22 +38,22 @@ class TestInterpretI64:
         assert self.interpret_int64(db, 'TYPE_SFIXED64', 0) == '0'
 
     def test_sfixed_neg1(self, db:  MySQLConnection):
-        assert self.interpret_int64(db, 'TYPE_SFIXED64', 1) == '-1'
+        assert self.interpret_int64(db, 'TYPE_SFIXED64', 0xffffffffffffffff) == '-1'
 
     def test_sfixed_neg2(self, db:  MySQLConnection):
-        assert self.interpret_int64(db, 'TYPE_SFIXED64', 3) == '-2'
+        assert self.interpret_int64(db, 'TYPE_SFIXED64', 0xfffffffffffffffe) == '-2'
 
     def test_sfixed_1(self, db:  MySQLConnection):
-        assert self.interpret_int64(db, 'TYPE_SFIXED64', 2) == '1'
+        assert self.interpret_int64(db, 'TYPE_SFIXED64', 1) == '1'
 
     def test_sfixed_2(self, db:  MySQLConnection):
-        assert self.interpret_int64(db, 'TYPE_SFIXED64', 4) == '2'
+        assert self.interpret_int64(db, 'TYPE_SFIXED64', 2) == '2'
 
     def test_sfixed_min(self, db:  MySQLConnection):
-        assert self.interpret_int64(db, 'TYPE_SFIXED64', 0xffffffffffffffff) == '-9223372036854775808'
+        assert self.interpret_int64(db, 'TYPE_SFIXED64', 0x8000000000000000) == '-9223372036854775808'
 
     def test_sfixed_max(self, db:  MySQLConnection):
-        assert self.interpret_int64(db, 'TYPE_SFIXED64', 0xfffffffffffffffe) == '9223372036854775807'
+        assert self.interpret_int64(db, 'TYPE_SFIXED64', 0x7fffffffffffffff) == '9223372036854775807'
 
 
     def test_double_smallest_denormalized(self, db:  MySQLConnection):

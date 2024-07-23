@@ -22,6 +22,7 @@ import group_pb2
 import oneof_pb2
 import packed_pb2
 import repeatedv3_pb2
+import everything_pb2
 from mysql.connector import MySQLConnection
 
 
@@ -118,3 +119,51 @@ class TestDecodeJsonFormat:
         message.f.append(3)
 
         assert (self.jsonformat(db, message.SerializeToString(), 'RepeatedV3') == {"f": [1, 2, 3]})
+
+    def test_everything(self, db:  MySQLConnection):
+        message = everything_pb2.ComplexNestedMessage()
+        message.all_varint.a_signed_int32=123456
+        message.all_varint.a_signed_zigzag_int32=-789123
+        message.all_varint.an_unsigned_int32=4294967295
+        message.all_varint.a_signed_int64=123456789
+        message.all_varint.a_signed_zigzag_int64=-123456789
+        message.all_varint.an_unsigned_int64=18446744073709551615
+        message.all_varint.a_boolean=True
+        message.all_fixed_32.an_unsigned_int32=4294967295
+        message.all_fixed_32.a_signed_int32=-12
+        message.all_fixed_32.a_float=12.375
+        message.all_fixed_64.an_unsigned_int64=18446744073709551615
+        message.all_fixed_64.a_signed_int64=-4294967295
+        message.all_fixed_64.a_double=1234567.7654321
+        message.all_len.a_string='A nice string'
+        message.all_len.some_bytes=bytes.fromhex('010203040506070809')
+        message.level1.level2.level3.a_string='nested'
+
+        assert (self.jsonformat(db, message.SerializeToString(), 'foo.bar.test.everything.ComplexNestedMessage') ==
+                {
+                    'allVarint': {
+                        'aSignedInt32': 123456,
+                        'aSignedZigzagInt32': -789123,
+                        'anUnsignedInt32': 4294967295,
+                        'aSignedInt64': 123456789,
+                        'aSignedZigzagInt64': -123456789,
+                        'anUnsignedInt64': 18446744073709551615,
+                        'aBoolean': True
+                    },
+                     'allFixed32': {
+                         'anUnsignedInt32': 4294967295,
+                         'aSignedInt32': -12,
+                         'aFloat': 12.375,
+                     },
+                     'allFixed64': {
+                         'anUnsignedInt64': 18446744073709551615,
+                         'aSignedInt64': -4294967295,
+                         'aDouble': 1234567.7654321,
+                     },
+                    'allLen': {
+                        'aString': 'A nice string',
+                        'someBytes': '\x01\x02\x03\x04\x05\x06\x07\x08\t'
+                    },
+                    'level1': {'level2': {'level3': {'aString': 'nested'}}}
+                 })
+

@@ -264,9 +264,9 @@ BEGIN
           WHEN 'TYPE_UINT64' THEN
             SET p_value = cast(cast(p_int as unsigned) as JSON);
           WHEN 'TYPE_SINT32' THEN
-            SET p_value = cast(cast((p_int >> 1 ^ (-(p_int & 1))) as signed) as JSON);
+            SET p_value = cast(cast(((p_int >> 1) ^ (-(p_int & 1))) as signed) as JSON);
           WHEN 'TYPE_SINT64' THEN
-            SET p_value = cast(cast((p_int >> 1 ^ (-(p_int & 1))) as signed) as JSON);
+            SET p_value = cast(cast(((p_int >> 1) ^ (-(p_int & 1))) as signed) as JSON);
           WHEN 'TYPE_BOOL' THEN
             SET p_value = cast((p_int & 1)=1 as JSON);
           ELSE
@@ -277,7 +277,7 @@ BEGIN
 END;
 //
 
-CREATE function _myproto_reinterpret_as_float(i integer unsigned) returns JSON deterministic
+CREATE function _myproto_reinterpret_as_float(i bigint unsigned) returns JSON deterministic
 BEGIN
     DECLARE mantissa integer default (i & 0x007fffff);
     DECLARE exponent_biased integer default ((i >> 23) & 0xff);
@@ -361,7 +361,7 @@ BEGIN
           WHEN 'TYPE_FIXED64' THEN
             SET p_value = cast(cast(p_int as unsigned) as JSON);
           WHEN 'TYPE_SFIXED64' THEN
-            SET p_value = cast(cast(((p_int >> 1) ^ (-(p_int & 1))) as signed) as JSON);
+            SET p_value = cast(cast(p_int as signed) as JSON);
           WHEN 'TYPE_DOUBLE' THEN
             SET p_value = _myproto_reinterpret_as_double(p_int);
           ELSE
@@ -372,7 +372,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_interpret_int32_value(IN p_field_type varchar(1000), IN p_int integer unsigned, OUT p_value JSON)
+CREATE PROCEDURE _myproto_interpret_int32_value(IN p_field_type varchar(1000), IN p_int bigint unsigned, OUT p_value JSON)
 BEGIN
   DECLARE error_text varchar(128) default CONCAT('Illegal type for int32 ', p_field_type);
 
@@ -383,7 +383,7 @@ BEGIN
           WHEN 'TYPE_FIXED32' THEN
             SET p_value = cast(cast(p_int as unsigned) as JSON);
           WHEN 'TYPE_SFIXED32' THEN
-            SET p_value = cast(cast(((p_int >> 1) ^ (-(p_int & 1))) as signed) as JSON);
+            SET p_value = cast(cast(IF((p_int >> 31) > 0, p_int | 0xffffffff00000000, p_int) as signed) as JSON);
           WHEN 'TYPE_FLOAT' THEN
             SET p_value = _myproto_reinterpret_as_float(p_int);
           ELSE
@@ -586,7 +586,7 @@ CREATE PROCEDURE _myproto_validate_wiretype_and_field_type(
     IN p_wiretype integer,
     IN p_field_type varchar(1000))
 BEGIN
-  DECLARE error_text varchar(128) default CONCAT('Invalid wiretype ', p_wiretype, ' for ', p_message_type, ' field ', p_field_number, ' ', p_field_type);
+  DECLARE error_text varchar(128) default CONCAT('Invalid wiretype ', p_wiretype, ' for ', IFNULL(p_message_type, '<null>'), ' field ', p_field_number, ' ', IFNULL(p_field_type, '<null>'));
 
   IF NOT(
       (p_wiretype = 0 AND p_field_type IN ('TYPE_INT32', 'TYPE_INT64', 'TYPE_UINT32', 'TYPE_UINT64', 'TYPE_SINT32', 'TYPE_SINT64', 'TYPE_BOOL', 'TYPE_ENUM'))
@@ -678,7 +678,7 @@ BEGIN
   CALL _myproto_push_frame(stack, offset, m_limit, parent_path, 0, null, message_type, sub_message_type);
   SET message = JSON_ARRAY();
 
-   WHILE offset < p_limit DO
+  WHILE offset < p_limit DO
       BEGIN
           BEGIN
             DECLARE EXIT HANDLER FOR SQLSTATE '45000'
@@ -720,7 +720,7 @@ BEGIN
             END IF;
           END;
       END;
-   END WHILE;
+  END WHILE;
 
   return message;
 END;

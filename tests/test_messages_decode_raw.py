@@ -22,6 +22,7 @@ import submessage_pb2
 import group_pb2
 import oneof_pb2
 import packed_pb2
+import everything_pb2
 from mysql.connector import MySQLConnection
 
 
@@ -78,6 +79,24 @@ class TestDecodeRawMessages:
                         'type': 'field',
                         'depth': 0,
                         'value': 'Repeated!',
+                        'field_name': None,
+                        'field_json_name': None,
+                        'repeated': False,
+                        'field_type': None,
+                        'field_number': 2
+                    }
+                ])
+
+    def test_string_message_recover_from_malformed_submessage_wiretype_would_be_6(self, db:  MySQLConnection):
+        message = string_message_pb2.StringMessage()
+        message.b = 'nested'
+        assert (self.decode_raw(db, message.SerializeToString()) ==
+                [
+                    {
+                        'path': '$',
+                        'type': 'field',
+                        'depth': 0,
+                        'value': 'nested',
                         'field_name': None,
                         'field_json_name': None,
                         'repeated': False,
