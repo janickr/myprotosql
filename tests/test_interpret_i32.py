@@ -72,14 +72,29 @@ class TestInterpretI32:
         assert self.interpret_int32(db, 'TYPE_FLOAT', 0x00800000) == '1.1754943508222875e-38'
         assert self.interpret_int32(db, 'TYPE_FLOAT', 0x80800000) == '-1.1754943508222875e-38'
 
+    @pytest.mark.mysql8
     def test_float_1(self, db:  MySQLConnection):
         assert self.interpret_int32(db, 'TYPE_FLOAT', 0x3f800000) == '1.0'
 
+    @pytest.mark.mysql8
     def test_float_neg1(self, db:  MySQLConnection):
         assert self.interpret_int32(db, 'TYPE_FLOAT', 0xbf800000) == '-1.0'
 
+    @pytest.mark.mysql8
     def test_float_neg2(self, db:  MySQLConnection):
         assert self.interpret_int32(db, 'TYPE_FLOAT', 0xc0000000) == '-2.0'
+
+    @pytest.mark.mysql5_7
+    def test_float_1_mysql5_7_cannot_cast_int_float(self, db:  MySQLConnection):
+        assert self.interpret_int32(db, 'TYPE_FLOAT', 0x3f800000) == '1'
+
+    @pytest.mark.mysql5_7
+    def test_float_neg1_mysql5_7_cannot_cast_int_float(self, db:  MySQLConnection):
+        assert self.interpret_int32(db, 'TYPE_FLOAT', 0xbf800000) == '-1'
+
+    @pytest.mark.mysql5_7
+    def test_float_neg2_mysql5_7_cannot_cast_int_float(self, db:  MySQLConnection):
+        assert self.interpret_int32(db, 'TYPE_FLOAT', 0xc0000000) == '-2'
 
     def test_float_neg0(self, db:  MySQLConnection):
         assert self.interpret_int32(db, 'TYPE_FLOAT', 0x80000000) == '0.0'

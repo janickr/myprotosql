@@ -292,23 +292,21 @@ BEGIN
     ELSEIF exponent_biased = 255 and sign = 0 THEN
         RETURN cast('"+Infinity"' as JSON);
     ELSEIF exponent_biased = 0 and mantissa = 0 and sign = 1 THEN
-        SET result = -0.0;
-        RETURN cast(result as JSON );
+        RETURN cast(-0.0 as JSON);
     ELSEIF exponent_biased = 0 and mantissa = 0 and sign = 0 THEN
-        SET result = 0.0;
-        RETURN cast(result as JSON );
+        RETURN cast(0.0 as JSON);
     ELSEIF exponent_biased = 0 and sign = 1 THEN
         SET result = -mantissa * pow(2, -149);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     ELSEIF exponent_biased = 0 and sign = 0 THEN
         SET result = mantissa * pow(2, -149);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     ELSEIF sign = 1 THEN
         SET result = -significand * pow(2, exponent_unbiased-23);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     ELSEIF sign = 0 THEN
         SET result = significand * pow(2, exponent_unbiased-23);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     END IF;
 end;
 //
@@ -328,23 +326,21 @@ BEGIN
     ELSEIF exponent_biased = 2047 and sign = 0 THEN
         RETURN cast('"+Infinity"' as JSON);
     ELSEIF exponent_biased = 0 and mantissa = 0 and sign = 1 THEN
-        SET result = -0.0;
-        RETURN cast(result as JSON );
+        RETURN cast(-0.0 as JSON);
     ELSEIF exponent_biased = 0 and mantissa = 0 and sign = 0 THEN
-        SET result = 0.0;
-        RETURN cast(result as JSON );
+        RETURN cast(0.0 as JSON);
     ELSEIF exponent_biased = 0 and sign = 1 THEN
         SET result = -mantissa * pow(2, -1074);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     ELSEIF exponent_biased = 0 and sign = 0 THEN
         SET result = mantissa * pow(2, -1074);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     ELSEIF sign = 1 THEN
         SET result = -significand * pow(2, exponent_unbiased-52);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     ELSEIF sign = 0 THEN
         SET result = significand * pow(2, exponent_unbiased-52);
-        RETURN cast(result as JSON );
+        RETURN cast(result as JSON);
     END IF;
 end;
 //

@@ -1,7 +1,7 @@
 version: '3.3'
 services:
 
-  db:
+  mysql_8:
     image: mysql:8.4
     container_name: mysql_8_4
     ports:
@@ -11,9 +11,14 @@ services:
       MYSQL_DATABASE: test_db
       MYSQL_USER: test_db
       MYSQL_PASSWORD: test_db
-      log_bin_trust_function_creators: 1
-#    volumes:
-#      - my-datavolume:/var/lib/mysql
-#
-#volumes:
-#  my-datavolume:
+
+  mysql_5:
+    image: mysql:5.7
+    container_name: mysql_5_7
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: test_db
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: test_db
+      MYSQL_PASSWORD: test_db

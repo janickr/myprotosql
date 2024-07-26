@@ -1,4 +1,4 @@
-name: Tests
+name: Tests MySQL 5.7
 
 on:
   push:
@@ -12,13 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mysql:
-        image: mysql:8.4
+        image: mysql:5.7
         env:
           MYSQL_ROOT_PASSWORD: test_db
           MYSQL_DATABASE: test_db
           MYSQL_USER: test_db
           MYSQL_PASSWORD: test_db
-          log_bin_trust_function_creators: 1
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=10
@@ -54,4 +53,4 @@ jobs:
     - name: Test with pytest
       run: |
         cd tests
-        pytest -m "not mysql5_7"
+        pytest -m "not mysql8"

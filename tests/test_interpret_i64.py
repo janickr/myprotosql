@@ -73,14 +73,29 @@ class TestInterpretI64:
         assert self.interpret_int64(db, 'TYPE_DOUBLE', 0x0010000000000000) == '2.2250738585072014e-308'
         assert self.interpret_int64(db, 'TYPE_DOUBLE', 0x8010000000000000) == '-2.2250738585072014e-308'
 
+    @pytest.mark.mysql8
     def test_double_1(self, db:  MySQLConnection):
         assert self.interpret_int64(db, 'TYPE_DOUBLE', 0x3ff0000000000000) == '1.0'
 
+    @pytest.mark.mysql8
     def test_double_neg1(self, db:  MySQLConnection):
         assert self.interpret_int64(db, 'TYPE_DOUBLE', 0xbff0000000000000) == '-1.0'
 
+    @pytest.mark.mysql8
     def test_double_neg2(self, db:  MySQLConnection):
         assert self.interpret_int64(db, 'TYPE_DOUBLE', 0xc000000000000000) == '-2.0'
+
+    @pytest.mark.mysql5_7
+    def test_double_1_mysql5_7_cannot_cast_int_double(self, db:  MySQLConnection):
+        assert self.interpret_int64(db, 'TYPE_DOUBLE', 0x3ff0000000000000) == '1'
+
+    @pytest.mark.mysql5_7
+    def test_double_neg1_mysql5_7_cannot_cast_int_double(self, db:  MySQLConnection):
+        assert self.interpret_int64(db, 'TYPE_DOUBLE', 0xbff0000000000000) == '-1'
+
+    @pytest.mark.mysql5_7
+    def test_double_neg2_mysql5_7_cannot_cast_int_double(self, db:  MySQLConnection):
+        assert self.interpret_int64(db, 'TYPE_DOUBLE', 0xc000000000000000) == '-2'
 
     def test_double_neg0(self, db:  MySQLConnection):
         assert self.interpret_int64(db, 'TYPE_DOUBLE', 0x8000000000000000) == '0.0'
