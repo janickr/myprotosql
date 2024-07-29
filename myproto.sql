@@ -60,7 +60,7 @@ DROP PROCEDURE IF EXISTS _myproto_var_int;
 
 
 delimiter //
-create function _myproto_unquote(p_json_string_or_null JSON) returns varchar(1000) deterministic
+create function _myproto_unquote(p_json_string_or_null JSON) returns text deterministic
     BEGIN
         IF JSON_TYPE(p_json_string_or_null) = 'NULL' THEN
             RETURN NULL;
@@ -70,7 +70,7 @@ create function _myproto_unquote(p_json_string_or_null JSON) returns varchar(100
     END;
 //
 
-create function _myproto_is_scalar(p_field_type varchar(1000)) returns boolean deterministic
+create function _myproto_is_scalar(p_field_type text) returns boolean deterministic
     BEGIN
         RETURN p_field_type like 'TYPE_INT%'
                 OR p_field_type like 'TYPE_UINT%'
@@ -82,7 +82,7 @@ create function _myproto_is_scalar(p_field_type varchar(1000)) returns boolean d
     END;
 //
 
-create function _myproto_field_type_to_wiretype(p_field_type varchar(1000)) returns boolean deterministic
+create function _myproto_field_type_to_wiretype(p_field_type text) returns boolean deterministic
     BEGIN
         DECLARE type_not_supported varchar(128) default CONCAT('Field type to wiretype mapping only supported for scalar types, not for ', p_field_type);
 
@@ -102,11 +102,11 @@ create function _myproto_field_type_to_wiretype(p_field_type varchar(1000)) retu
 //
 
 
-CREATE PROCEDURE _myproto_var_int(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_result bigint unsigned)
+CREATE PROCEDURE _myproto_var_int(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, OUT p_result bigint unsigned)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('VarInt at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
   DECLARE error_text_too_many_bytes varchar(128) default CONCAT('VarInt at offset ', p_offset, ' has more than 10 bytes');
-  DECLARE next varbinary(10000);
+  DECLARE next blob;
   DECLARE shift, count integer;
   DECLARE b integer(1);
   SET p_result = 0;
@@ -137,9 +137,9 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_get_fixed_number_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_nb_bytes integer, OUT p_value bigint unsigned)
+CREATE PROCEDURE _myproto_get_fixed_number_value(IN p_bytes blob, INOUT p_offset integer, IN p_nb_bytes integer, OUT p_value bigint unsigned)
 BEGIN
-  DECLARE next varbinary(10000) DEFAULT substr(p_bytes, p_offset);
+  DECLARE next blob DEFAULT substr(p_bytes, p_offset);
   DECLARE result bigint unsigned default 0;
   DECLARE shift, count integer default 0;
   DECLARE b integer(1);
@@ -155,7 +155,7 @@ BEGIN
 END
 //
 
-CREATE PROCEDURE _myproto_get_i32_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
+CREATE PROCEDURE _myproto_get_i32_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
   BEGIN
     DECLARE error_text_exceeds_limit varchar(128) default CONCAT('i32 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
 
@@ -167,7 +167,7 @@ CREATE PROCEDURE _myproto_get_i32_value(IN p_bytes varbinary(10000), INOUT p_off
   END;
 //
 
-CREATE PROCEDURE _myproto_get_i64_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
+CREATE PROCEDURE _myproto_get_i64_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, OUT p_value bigint unsigned)
   BEGIN
     DECLARE error_text_exceeds_limit varchar(128) default CONCAT('i64 at offset ', p_offset, ' exceeds limit set by LEN ', p_limit);
 
@@ -179,7 +179,7 @@ CREATE PROCEDURE _myproto_get_i64_value(IN p_bytes varbinary(10000), INOUT p_off
   END;
 //
 
-CREATE PROCEDURE _myproto_get_len_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_value JSON)
+CREATE PROCEDURE _myproto_get_len_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, OUT p_value JSON)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
 
@@ -195,16 +195,16 @@ END;
 //
 
 CREATE PROCEDURE _myproto_packed_scalar(
-    IN p_bytes varbinary(10000),
+    IN p_bytes blob,
     INOUT p_offset integer,
     IN p_limit integer,
     INOUT p_message JSON,
     IN p_depth integer,
-    IN p_parent_path varchar(1000),
+    IN p_parent_path text,
     IN p_field_number integer,
-    IN p_field_name varchar(1000),
-    IN p_field_json_name varchar(1000),
-    IN p_field_type varchar(1000))
+    IN p_field_name text,
+    IN p_field_json_name text,
+    IN p_field_type text)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
 
@@ -229,7 +229,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_get_field_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, IN p_wiretype integer, OUT p_value JSON)
+CREATE PROCEDURE _myproto_get_field_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, IN p_wiretype integer, OUT p_value JSON)
 BEGIN
   DECLARE error_text varchar(128) default CONCAT('Invalid wiretype ', p_wiretype);
 
@@ -251,7 +251,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_interpret_varint_value(IN p_field_type varchar(1000), IN p_int bigint unsigned, OUT p_value JSON)
+CREATE PROCEDURE _myproto_interpret_varint_value(IN p_field_type text, IN p_int bigint unsigned, OUT p_value JSON)
 BEGIN
   DECLARE error_text varchar(128) default CONCAT('Illegal type for varint ', p_field_type);
 
@@ -350,7 +350,7 @@ end;
 //
 
 
-CREATE PROCEDURE _myproto_interpret_int64_value(IN p_field_type varchar(1000), IN p_int bigint unsigned, OUT p_value JSON)
+CREATE PROCEDURE _myproto_interpret_int64_value(IN p_field_type text, IN p_int bigint unsigned, OUT p_value JSON)
 BEGIN
   DECLARE error_text varchar(128) default CONCAT('Illegal type for int64 ', p_field_type);
 
@@ -372,7 +372,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_interpret_int32_value(IN p_field_type varchar(1000), IN p_int bigint unsigned, OUT p_value JSON)
+CREATE PROCEDURE _myproto_interpret_int32_value(IN p_field_type text, IN p_int bigint unsigned, OUT p_value JSON)
 BEGIN
   DECLARE error_text varchar(128) default CONCAT('Illegal type for int32 ', p_field_type);
 
@@ -394,7 +394,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_get_number_field_value(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, IN p_wiretype integer, OUT p_value JSON, IN p_field_type varchar(1000))
+CREATE PROCEDURE _myproto_get_number_field_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, IN p_wiretype integer, OUT p_value JSON, IN p_field_type text)
 BEGIN
   DECLARE error_text varchar(128) default CONCAT('Invalid wiretype ', p_wiretype);
 
@@ -421,11 +421,11 @@ CREATE PROCEDURE _myproto_push_frame(
     INOUT p_stack JSON,
     IN p_offset integer,
     IN p_limit integer,
-    INOUT p_path varchar(1000),
+    INOUT p_path text,
     IN p_field_number integer,
-    IN p_field_name varchar(1000),
-    INOUT p_message_type varchar(1000),
-    IN p_sub_message_type varchar(1000))
+    IN p_field_name text,
+    INOUT p_message_type text,
+    IN p_sub_message_type text)
 BEGIN
         SET p_stack = JSON_ARRAY_INSERT(
                 p_stack,
@@ -449,10 +449,10 @@ CREATE PROCEDURE _myproto_pop_frame_and_reset(
     INOUT p_stack JSON,
     OUT p_offset integer,
     OUT p_limit integer,
-    OUT p_path varchar(1000),
+    OUT p_path text,
     OUT p_field_number integer,
-    OUT p_field_name varchar(1000),
-    OUT p_message_type varchar(1000))
+    OUT p_field_name text,
+    OUT p_message_type text)
     BEGIN
         SET p_offset = JSON_EXTRACT(p_stack, '$[0].offset');
         SET p_limit = JSON_EXTRACT(p_stack, '$[0].limit');
@@ -467,10 +467,10 @@ CREATE PROCEDURE _myproto_pop_frame_and_reset(
 CREATE PROCEDURE _myproto_pop_frame(
     INOUT p_stack JSON,
     OUT p_limit integer,
-    OUT p_path varchar(1000),
+    OUT p_path text,
     OUT p_field_number integer,
-    OUT p_field_name varchar(1000),
-    OUT p_message_type varchar(1000))
+    OUT p_field_name text,
+    OUT p_message_type text)
     BEGIN
         SET p_limit = JSON_EXTRACT(p_stack, '$[0].limit');
         SET p_path = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].path'));
@@ -485,7 +485,7 @@ CREATE FUNCTION _myproto_is_frame_field(p_stack JSON, p_field integer) returns b
     RETURN JSON_EXTRACT(p_stack, '$[0].field_number') = p_field;
 //
 
-CREATE PROCEDURE _myproto_get_field_and_wiretype(IN p_bytes varbinary(10000), INOUT p_offset integer, IN p_limit integer, OUT p_field_number integer, OUT p_wiretype integer)
+CREATE PROCEDURE _myproto_get_field_and_wiretype(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, OUT p_field_number integer, OUT p_wiretype integer)
 BEGIN
   DECLARE field_wiretype integer;
 
@@ -495,7 +495,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_len_limit(IN p_bytes varbinary(10000), INOUT p_offset integer, INOUT p_limit integer)
+CREATE PROCEDURE _myproto_len_limit(IN p_bytes blob, INOUT p_offset integer, INOUT p_limit integer)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
 
@@ -521,7 +521,7 @@ CREATE FUNCTION _myproto_wiretype_egroup(p_wiretype integer) returns boolean det
     return p_wiretype = 4;
 //
 
-CREATE PROCEDURE _myproto_append_path_value(INOUT p_message JSON, IN p_depth integer, IN p_parent_path varchar(1000), IN p_field_number integer, IN p_field_name varchar(1000), IN p_field_json_name varchar(1000), IN p_field_type varchar(1000), IN p_repeated boolean, IN p_value JSON)
+CREATE PROCEDURE _myproto_append_path_value(INOUT p_message JSON, IN p_depth integer, IN p_parent_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_field_type text, IN p_repeated boolean, IN p_value JSON)
 BEGIN
     SET p_message = JSON_ARRAY_APPEND(
             p_message,
@@ -540,7 +540,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_append_start_submessage(INOUT p_message JSON, IN p_depth integer, IN p_parent_path varchar(1000), IN p_field_number integer, IN p_field_name varchar(1000), IN p_field_json_name varchar(1000), IN p_message_type varchar(1000), IN p_repeated boolean)
+CREATE PROCEDURE _myproto_append_start_submessage(INOUT p_message JSON, IN p_depth integer, IN p_parent_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_message_type text, IN p_repeated boolean)
 BEGIN
     SET p_message = JSON_ARRAY_APPEND(
             p_message,
@@ -558,7 +558,7 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_is_start_submessage(p_message JSON, last_element varchar(50), p_depth integer, p_parent_path varchar(1000), p_field_number integer) RETURNS boolean deterministic
+CREATE FUNCTION _myproto_is_start_submessage(p_message JSON, last_element text, p_depth integer, p_parent_path text, p_field_number integer) RETURNS boolean deterministic
 BEGIN
     RETURN (cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(last_element, '.type'))) as char) = 'message'
         AND JSON_EXTRACT(p_message, CONCAT(last_element, '.depth')) = p_depth
@@ -567,10 +567,10 @@ BEGIN
 END
 //
 
-CREATE PROCEDURE _myproto_undo_appended_fields(INOUT p_message JSON, IN p_depth integer, IN p_parent_path varchar(1000), IN p_field_number integer)
+CREATE PROCEDURE _myproto_undo_appended_fields(INOUT p_message JSON, IN p_depth integer, IN p_parent_path text, IN p_field_number integer)
 BEGIN
     DECLARE length integer DEFAULT JSON_LENGTH(p_message)-1;
-    DECLARE last_element varchar(50) DEFAULT CONCAT('$[',length,']');
+    DECLARE last_element text DEFAULT CONCAT('$[',length,']');
     WHILE NOT _myproto_is_start_submessage(p_message, last_element, p_depth, p_parent_path, p_field_number) AND length >= 1 DO
         SET p_message = JSON_REMOVE(p_message, last_element);
         SET length = length-1;
@@ -581,10 +581,10 @@ END;
 //
 
 CREATE PROCEDURE _myproto_validate_wiretype_and_field_type(
-    IN p_message_type varchar(1000),
+    IN p_message_type text,
     IN p_field_number integer,
     IN p_wiretype integer,
-    IN p_field_type varchar(1000))
+    IN p_field_type text)
 BEGIN
   DECLARE error_text varchar(128) default CONCAT('Invalid wiretype ', p_wiretype, ' for ', IFNULL(p_message_type, '<null>'), ' field ', p_field_number, ' ', IFNULL(p_field_type, '<null>'));
 
@@ -603,14 +603,14 @@ END;
 //
 
 CREATE PROCEDURE _myproto_get_field_properties(
-    IN p_message_type varchar(1000),
+    IN p_message_type text,
     IN p_field_number integer,
     IN p_wiretype integer,
     IN p_protos JSON,
-    OUT p_field_type varchar(1000),
-    OUT p_field_name varchar(1000),
-    OUT p_field_json_name varchar(1000),
-    OUT p_sub_message_type varchar(1000),
+    OUT p_field_type text,
+    OUT p_field_name text,
+    OUT p_field_json_name text,
+    OUT p_sub_message_type text,
     OUT p_repeated boolean,
     OUT p_packed boolean)
 BEGIN
@@ -625,16 +625,16 @@ END;
 //
 
 CREATE PROCEDURE _myproto_recover_from_error(
-    IN p_bytes varbinary(10000),
+    IN p_bytes blob,
     INOUT p_stack JSON,
     INOUT p_message JSON,
     OUT p_offset integer,
     OUT p_limit integer,
-    OUT p_path varchar(1000),
+    OUT p_path text,
     OUT p_field_number integer,
-    OUT p_field_name varchar(1000),
-    OUT p_field_json_name varchar(1000),
-    OUT p_message_type varchar(1000)
+    OUT p_field_name text,
+    OUT p_field_json_name text,
+    OUT p_message_type text
 )
 BEGIN
     DECLARE in_error_state boolean default true;
@@ -661,16 +661,16 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_flatten_message(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns JSON deterministic
+CREATE FUNCTION _myproto_flatten_message(p_bytes blob, p_message_type text, p_protos JSON) returns JSON deterministic
 BEGIN
   DECLARE offset integer default 1;
   DECLARE field_number, wiretype integer;
   DECLARE p_limit, m_limit integer default length(p_bytes)+1;
   DECLARE message, stack, value JSON;
-  DECLARE parent_path varchar(1000) default '$';
-  DECLARE message_type varchar(1000) default '';
-  DECLARE sub_message_type varchar(1000) default IF(p_message_type IS NULL, NULL, CONCAT('.', p_message_type));
-  DECLARE field_type, field_name, field_json_name varchar(1000);
+  DECLARE parent_path text default '$';
+  DECLARE message_type text default '';
+  DECLARE sub_message_type text default IF(p_message_type IS NULL, NULL, CONCAT('.', p_message_type));
+  DECLARE field_type, field_name, field_json_name text;
   DECLARE decode_raw boolean default p_message_type IS NULL;
   DECLARE packed, repeated boolean default NULL;
 
@@ -726,9 +726,9 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_to_utf8_textformat_string(string varbinary(10000)) returns varchar(10000) deterministic
+CREATE FUNCTION _myproto_to_utf8_textformat_string(string blob) returns text deterministic
 BEGIN
- declare utf8 varchar(1000) default CONVERT(string USING utf8mb4);
+ declare utf8 text default CONVERT(string USING utf8mb4);
  IF utf8 IS NULL THEN
     RETURN _myproto_textformat_escape_binary(string);
  ELSE
@@ -737,11 +737,11 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_textformat_escape_binary(p_bytes varbinary(10000)) returns varchar(10000) deterministic
+CREATE FUNCTION _myproto_textformat_escape_binary(p_bytes blob) returns text deterministic
 BEGIN
-    DECLARE next varbinary(10000) default p_bytes;
+    DECLARE next blob default p_bytes;
     DECLARE b integer(1);
-    DECLARE result varchar(10000) charset utf8mb4 default '';
+    DECLARE result text charset utf8mb4 default '';
     DECLARE escaped_or_char varchar(4) charset utf8mb4 default '';
 
     WHILE LENGTH(next) > 0 DO
@@ -758,7 +758,7 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_textformat_escape(string varbinary(10000)) returns varchar(10000) deterministic
+CREATE FUNCTION _myproto_textformat_escape(string blob) returns text deterministic
 BEGIN
     RETURN REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
                    string,
@@ -774,16 +774,16 @@ BEGIN
 END;
 
 
-CREATE FUNCTION _myproto_textformat(p_message JSON) returns varchar(10000) deterministic
+CREATE FUNCTION _myproto_textformat(p_message JSON) returns text deterministic
 BEGIN
     DECLARE length integer DEFAULT JSON_LENGTH(p_message);
     DECLARE i, depth, previous_depth integer default 0;
-    DECLARE textformat varchar(10000) default '';
-    DECLARE next_element varchar(50) default CONCAT('$[',i,']');
-    DECLARE type varchar(10);
+    DECLARE textformat TEXT charset utf8mb4 default '';
+    DECLARE next_element TEXT default CONCAT('$[',i,']');
+    DECLARE type TEXT;
     DECLARE field_number integer;
     DECLARE value JSON;
-    DECLARE field_name, field_type varchar(1000);
+    DECLARE field_name, field_type TEXT;
     WHILE i < length DO
         SET type = cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(next_element,'.type'))) as char);
         SET depth = JSON_EXTRACT(p_message, CONCAT(next_element, '.depth'));
@@ -822,10 +822,10 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_binary_to_base64(p_value JSON, p_field_type varchar(1000)) returns JSON deterministic
+CREATE FUNCTION _myproto_binary_to_base64(p_value JSON, p_field_type text) returns JSON deterministic
 BEGIN
-    DECLARE value varbinary(10000);
-    DECLARE result varchar(10000) charset utf8mb4;
+    DECLARE value blob;
+    DECLARE result text charset utf8mb4;
     IF JSON_TYPE(p_value) = 'STRING' THEN
         SET value = JSON_UNQUOTE(p_value);
         IF p_field_type = 'TYPE_BYTES' THEN
@@ -842,10 +842,10 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path varchar(1000), IN p_field_number integer, IN p_field_name varchar(1000), IN p_field_json_name varchar(1000), IN p_field_type varchar(1000), IN p_repeated boolean, IN p_value JSON, OUT p_new_path varchar(1000))
+CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_field_type text, IN p_repeated boolean, IN p_value JSON, OUT p_new_path text)
 BEGIN
-    DECLARE name varchar(1000) default IFNULL(p_field_json_name, IFNULL(p_field_name, CONCAT('"',p_field_number, '"')));
-    DECLARE path varchar(1000) default CONCAT(REVERSE(p_path), '.', name);
+    DECLARE name text default IFNULL(p_field_json_name, IFNULL(p_field_name, CONCAT('"',p_field_number, '"')));
+    DECLARE path text default CONCAT(REVERSE(p_path), '.', name);
     DECLARE existing_object_or_array JSON default JSON_EXTRACT(p_jsonformat, path);
     SET p_value = _myproto_binary_to_base64(p_value, p_field_type);
     IF JSON_TYPE(existing_object_or_array) IS NULL AND p_repeated AND JSON_TYPE(p_value) = 'ARRAY' THEN
@@ -879,12 +879,12 @@ BEGIN
     DECLARE length integer DEFAULT JSON_LENGTH(p_message);
     DECLARE i, depth, previous_depth integer default 0;
     DECLARE jsonformat JSON default JSON_OBJECT();
-    DECLARE path, not_needed varchar(1000) default '$';
-    DECLARE next_element varchar(50) default CONCAT('$[',i,']');
+    DECLARE path, not_needed text default '$';
+    DECLARE next_element text default CONCAT('$[',i,']');
     DECLARE type varchar(10);
     DECLARE field_number integer;
     DECLARE repeated boolean;
-    DECLARE field_name, field_type, field_json_name varchar(1000);
+    DECLARE field_name, field_type, field_json_name text;
     DECLARE value JSON;
     WHILE i < length DO
         SET type = cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(next_element,'.type'))) as char);
@@ -913,12 +913,12 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION myproto_decode_to_textformat(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns varchar(10000) deterministic
+CREATE FUNCTION myproto_decode_to_textformat(p_bytes blob, p_message_type text, p_protos JSON) returns text deterministic
 BEGIN
     RETURN _myproto_textformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));
 END;
 //
-CREATE FUNCTION myproto_decode_to_jsonformat(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns JSON deterministic
+CREATE FUNCTION myproto_decode_to_jsonformat(p_bytes blob, p_message_type text, p_protos JSON) returns JSON deterministic
 BEGIN
     RETURN _myproto_jsonformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));
 END;
