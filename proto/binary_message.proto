@@ -1,0 +1,4 @@
+
+message BinaryMessage {
+  optional bytes binary = 7;
+}

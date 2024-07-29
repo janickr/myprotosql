@@ -1,3 +1,4 @@
 message PackedFields {
   repeated int32 f = 6 [packed=true];
+  repeated float more_floats = 7 [packed=true];
 }

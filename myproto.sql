@@ -17,6 +17,7 @@
 
 DROP FUNCTION IF EXISTS myproto_decode_to_jsonformat;
 DROP FUNCTION IF EXISTS myproto_decode_to_textformat;
+DROP FUNCTION IF EXISTS _myproto_binary_to_base64;
 DROP FUNCTION IF EXISTS _myproto_field_type_to_wiretype;
 DROP FUNCTION IF EXISTS _myproto_flatten_message;
 DROP FUNCTION IF EXISTS _myproto_is_frame_field;
@@ -26,6 +27,9 @@ DROP FUNCTION IF EXISTS _myproto_jsonformat;
 DROP FUNCTION IF EXISTS _myproto_reinterpret_as_double;
 DROP FUNCTION IF EXISTS _myproto_reinterpret_as_float;
 DROP FUNCTION IF EXISTS _myproto_textformat;
+DROP FUNCTION IF EXISTS _myproto_textformat_escape;
+DROP FUNCTION IF EXISTS _myproto_textformat_escape_binary;
+DROP FUNCTION IF EXISTS _myproto_to_utf8_textformat_string;
 DROP FUNCTION IF EXISTS _myproto_unquote;
 DROP FUNCTION IF EXISTS _myproto_wiretype_egroup;
 DROP FUNCTION IF EXISTS _myproto_wiretype_len;
@@ -722,8 +726,54 @@ BEGIN
 END;
 //
 
+CREATE FUNCTION _myproto_to_utf8_textformat_string(string varbinary(10000)) returns varchar(10000) deterministic
+BEGIN
+ declare utf8 varchar(1000) default CONVERT(string USING utf8mb4);
+ IF utf8 IS NULL THEN
+    RETURN _myproto_textformat_escape_binary(string);
+ ELSE
+    RETURN _myproto_textformat_escape(utf8);
+ END IF;
+END;
+//
 
--- todo check textformat spec
+CREATE FUNCTION _myproto_textformat_escape_binary(p_bytes varbinary(10000)) returns varchar(10000) deterministic
+BEGIN
+    DECLARE next varbinary(10000) default p_bytes;
+    DECLARE b integer(1);
+    DECLARE result varchar(10000) charset utf8mb4 default '';
+    DECLARE escaped_or_char varchar(4) charset utf8mb4 default '';
+
+    WHILE LENGTH(next) > 0 DO
+        SET b = ASCII(next);
+        IF (b < 0x20 OR b > 0x7e OR b = 0x22 OR b = 0x5C) THEN
+            SET escaped_or_char = CONCAT('\\x', LPAD(hex(b), 2, '0'));
+        ELSE
+            SET escaped_or_char = SUBSTR(next, 1, 1);
+        END IF;
+        SET result = CONCAT(result, escaped_or_char);
+        SET next = substr(next, 2);
+    END WHILE;
+    RETURN result;
+END;
+//
+
+CREATE FUNCTION _myproto_textformat_escape(string varbinary(10000)) returns varchar(10000) deterministic
+BEGIN
+    RETURN REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                   string,
+                   '\\', '\\\\'),
+                   '"', '\\"'),
+                   0x07, '\\a'),
+                   0x08, '\\b'),
+                   0x09, '\\t'),
+                   0x0a, '\\n'),
+                   0x0b, '\\v'),
+                   0x0c, '\\f'),
+                   0x0d, '\\r');
+END;
+
+
 CREATE FUNCTION _myproto_textformat(p_message JSON) returns varchar(10000) deterministic
 BEGIN
     DECLARE length integer DEFAULT JSON_LENGTH(p_message);
@@ -732,11 +782,13 @@ BEGIN
     DECLARE next_element varchar(50) default CONCAT('$[',i,']');
     DECLARE type varchar(10);
     DECLARE field_number integer;
-    DECLARE field_name, value varchar(1000);
+    DECLARE value JSON;
+    DECLARE field_name, field_type varchar(1000);
     WHILE i < length DO
         SET type = cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(next_element,'.type'))) as char);
         SET depth = JSON_EXTRACT(p_message, CONCAT(next_element, '.depth'));
         SET field_number = JSON_EXTRACT(p_message, CONCAT(next_element, '.field_number'));
+        SET field_type = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_type')));
         SET field_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_name')));
         IF previous_depth > depth THEN
             SET textformat = CONCAT(textformat, SPACE(depth), '}\n');
@@ -744,9 +796,13 @@ BEGIN
         IF type = 'field' THEN
             SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
             IF JSON_TYPE(value) = 'STRING' THEN
-                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': "', JSON_UNQUOTE(value), '"\n');
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': "', _myproto_to_utf8_textformat_string(JSON_UNQUOTE(value)), '"\n');
+            ELSEIF JSON_TYPE(value) = 'ARRAY' AND ((field_type = 'TYPE_FLOAT') OR (field_type = 'TYPE_DOUBLE')) THEN
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(REPLACE(REPLACE(REPLACE(cast(value as char), ',', ''), '[', '{'), ']', 'f}'), ' ', 'f '), '\n');
             ELSEIF JSON_TYPE(value) = 'ARRAY' THEN
                 SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(REPLACE(REPLACE(cast(value as char), ',', ''), '[', '{'), ']', '}'), '\n');
+            ELSEIF (field_type = 'TYPE_FLOAT') OR (field_type = 'TYPE_DOUBLE') THEN
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', value, 'f\n');
             ELSE
                 SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', value, '\n');
             END IF;
@@ -766,11 +822,32 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path varchar(1000), IN p_field_number integer, IN p_field_name varchar(1000), IN p_field_json_name varchar(1000), IN p_repeated boolean, IN p_value JSON, OUT p_new_path varchar(1000))
+CREATE FUNCTION _myproto_binary_to_base64(p_value JSON, p_field_type varchar(1000)) returns JSON deterministic
+BEGIN
+    DECLARE value varbinary(10000);
+    DECLARE result varchar(10000) charset utf8mb4;
+    IF JSON_TYPE(p_value) = 'STRING' THEN
+        SET value = JSON_UNQUOTE(p_value);
+        IF p_field_type = 'TYPE_BYTES' THEN
+            RETURN JSON_QUOTE(TO_BASE64(value));
+        END IF;
+        SET result = convert(value using utf8mb4);
+        IF result IS NULL THEN
+            RETURN JSON_QUOTE(TO_BASE64(value));
+        ELSE
+            RETURN JSON_QUOTE(result);
+        END IF;
+    END IF;
+    RETURN p_value;
+END;
+//
+
+CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path varchar(1000), IN p_field_number integer, IN p_field_name varchar(1000), IN p_field_json_name varchar(1000), IN p_field_type varchar(1000), IN p_repeated boolean, IN p_value JSON, OUT p_new_path varchar(1000))
 BEGIN
     DECLARE name varchar(1000) default IFNULL(p_field_json_name, IFNULL(p_field_name, CONCAT('"',p_field_number, '"')));
     DECLARE path varchar(1000) default CONCAT(REVERSE(p_path), '.', name);
     DECLARE existing_object_or_array JSON default JSON_EXTRACT(p_jsonformat, path);
+    SET p_value = _myproto_binary_to_base64(p_value, p_field_type);
     IF JSON_TYPE(existing_object_or_array) IS NULL AND p_repeated AND JSON_TYPE(p_value) = 'ARRAY' THEN
         SET p_jsonformat = JSON_SET(p_jsonformat, path, p_value);
         SET p_new_path = REVERSE(CONCAT(path, '[',JSON_LENGTH(p_value)-1,']'));
@@ -797,7 +874,7 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_jsonformat(p_message JSON) returns varchar(10000) deterministic
+CREATE FUNCTION _myproto_jsonformat(p_message JSON) returns JSON deterministic
 BEGIN
     DECLARE length integer DEFAULT JSON_LENGTH(p_message);
     DECLARE i, depth, previous_depth integer default 0;
@@ -807,7 +884,7 @@ BEGIN
     DECLARE type varchar(10);
     DECLARE field_number integer;
     DECLARE repeated boolean;
-    DECLARE field_name, field_json_name varchar(1000);
+    DECLARE field_name, field_type, field_json_name varchar(1000);
     DECLARE value JSON;
     WHILE i < length DO
         SET type = cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(next_element,'.type'))) as char);
@@ -815,15 +892,16 @@ BEGIN
         SET field_number = JSON_EXTRACT(p_message, CONCAT(next_element, '.field_number'));
         SET repeated = cast(JSON_EXTRACT(p_message, CONCAT(next_element, '.repeated')) as unsigned) = 1;
         SET field_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_name')));
+        SET field_type = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_type')));
         SET field_json_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_json_name')));
         IF previous_depth > depth THEN
             SET path = SUBSTRING(path, LOCATE('.', path)+1);
         END IF;
         IF type = 'field' THEN
             SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
-            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, repeated, value, not_needed);
+            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, field_type, repeated, value, not_needed);
         ELSE
-            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, repeated, JSON_OBJECT(), path);
+            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, field_type, repeated, JSON_OBJECT(), path);
         END IF;
 
         SET previous_depth = depth;
@@ -840,7 +918,7 @@ BEGIN
     RETURN _myproto_textformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));
 END;
 //
-CREATE FUNCTION myproto_decode_to_jsonformat(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns varchar(10000) deterministic
+CREATE FUNCTION myproto_decode_to_jsonformat(p_bytes varbinary(10000), p_message_type varchar(1000), p_protos JSON) returns JSON deterministic
 BEGIN
     RETURN _myproto_jsonformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));
 END;

@@ -12,6 +12,7 @@
 #
 #  You should have received a copy of the GNU Lesser General Public License along with Myprotosql.
 #  If not, see <https://www.gnu.org/licenses/>.
+import json
 
 import pytest
 import mysql.connector
@@ -26,3 +27,42 @@ def db():
         password='test_db',
         host='127.0.0.1',
         database='test_db')
+
+
+@pytest.fixture(scope="session")
+def myprotosql(db):
+    return MyProtoSql(db)
+
+class MyProtoSql():
+
+    def __init__(self, db):
+        self.db = db
+    def decode(self, p_bytes, p_message_type):
+        with self.db.cursor() as cursor:
+            cursor.execute("select _myproto_flatten_message(%s, %s, myproto_descriptors())", (p_bytes, p_message_type))
+            return json.loads(cursor.fetchone()[0])
+
+    def decode_raw(self, p_bytes):
+        with self.db.cursor() as cursor:
+            cursor.execute("select _myproto_flatten_message(%s, NULL, NULL)", (p_bytes,))
+            return json.loads(cursor.fetchone()[0])
+
+    def decode_raw_textformat(self, p_bytes):
+        with self.db.cursor() as cursor:
+            cursor.execute("select myproto_decode_to_textformat(%s, NULL, NULL)", (p_bytes, ))
+            return cursor.fetchone()[0]
+
+    def decode_raw_jsonformat(self, p_bytes):
+        with self.db.cursor() as cursor:
+            cursor.execute("select myproto_decode_to_jsonformat(%s, NULL, NULL)", (p_bytes, ))
+            return json.loads(cursor.fetchone()[0])
+
+    def decode_jsonformat(self, p_bytes, p_message_type):
+        with self.db.cursor() as cursor:
+            cursor.execute("select myproto_decode_to_jsonformat(%s, %s, myproto_descriptors())", (p_bytes, p_message_type))
+            return json.loads(cursor.fetchone()[0])
+
+    def decode_textformat(self, p_bytes, p_message_type):
+        with self.db.cursor() as cursor:
+            cursor.execute("select myproto_decode_to_textformat(%s, %s, myproto_descriptors())", (p_bytes, p_message_type))
+            return cursor.fetchone()[0]

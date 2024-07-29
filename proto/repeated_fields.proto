@@ -3,6 +3,7 @@ message RepeatedFields {
   optional string d = 4;
   repeated int32 e = 5;
   repeated RepeatedFieldsSubMessage g = 7;
+  repeated float more_floats = 8;
 }
 
 message RepeatedFieldsSubMessage {

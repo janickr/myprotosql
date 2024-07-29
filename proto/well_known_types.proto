@@ -1,0 +1,7 @@
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+message WellKnownTypes {
+  optional google.protobuf.Timestamp a_timestamp = 1;
+  optional google.protobuf.Duration a_duration = 2;
+}
