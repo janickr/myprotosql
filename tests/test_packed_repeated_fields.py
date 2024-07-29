@@ -16,7 +16,7 @@
 import packed_pb2
 import repeatedv3_pb2
 
-from tests.conftest import MyProtoSql
+from conftest import MyProtoSql
 
 
 class TestPackedRepeatedFields:

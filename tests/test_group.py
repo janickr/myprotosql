@@ -15,7 +15,7 @@
 
 import group_pb2
 
-from tests.conftest import MyProtoSql
+from conftest import MyProtoSql
 
 
 class TestGroup:

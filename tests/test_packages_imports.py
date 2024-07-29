@@ -17,7 +17,7 @@ import packages_submessage_pb2
 import imports_parentmessage_pb2
 import packages_imports_parentmessage_pb2
 
-from tests.conftest import MyProtoSql
+from conftest import MyProtoSql
 
 
 class TestPackagesAndImports:

@@ -15,7 +15,7 @@
 
 import string_message_pb2
 
-from tests.conftest import MyProtoSql
+from conftest import MyProtoSql
 
 
 class TestStringMessage:

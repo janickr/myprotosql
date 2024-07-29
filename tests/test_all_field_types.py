@@ -13,19 +13,9 @@
 #  You should have received a copy of the GNU Lesser General Public License along with Myprotosql.
 #  If not, see <https://www.gnu.org/licenses/>.
 
-import json
-import simple_message_pb2
-import string_message_pb2
-import repeated_fields_pb2
-import submessage_pb2
-import group_pb2
-import oneof_pb2
-import packed_pb2
-import repeatedv3_pb2
 import everything_pb2
-from mysql.connector import MySQLConnection
 
-from tests.conftest import MyProtoSql
+from conftest import MyProtoSql
 
 
 class TestAllFieldTypes:

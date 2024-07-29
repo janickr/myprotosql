@@ -13,8 +13,6 @@
 #  You should have received a copy of the GNU Lesser General Public License along with Myprotosql.
 #  If not, see <https://www.gnu.org/licenses/>.
 
-from dataclasses import dataclass
-
 import pytest
 from mysql.connector import MySQLConnection
 
