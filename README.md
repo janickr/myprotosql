@@ -2,7 +2,8 @@
 
 A set of mysql stored functions/procedures to read protobuf binary data  
 
-[![Tests](https://github.com/janickr/myprotosql/actions/workflows/tests.yml/badge.svg)](https://github.com/janickr/myprotosql/actions/workflows/tests.yml)
+[![Tests](https://github.com/janickr/myprotosql/actions/workflows/tests-mysql5_7.yml/badge.svg)](https://github.com/janickr/myprotosql/actions/workflows/tests-mysql5_7.yml)
+[![Tests](https://github.com/janickr/myprotosql/actions/workflows/tests-mysql8.yml/badge.svg)](https://github.com/janickr/myprotosql/actions/workflows/tests-mysql8.yml)
 [![PyPi](https://img.shields.io/pypi/v/myprotosql)](https://pypi.org/project/myprotosql/)
 
 ## Getting started
