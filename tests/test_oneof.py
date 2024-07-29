@@ -98,7 +98,7 @@ class TestOneOf:
                      'field_json_name': None,
                      'repeated': False,
                      'field_number': 4,
-                     'field_type': None,
+                     'field_type': 'TYPE_STRING',
                      'path': '$',
                      'type': 'field',
                      'value': 'a string'}

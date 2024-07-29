@@ -50,7 +50,7 @@ class TestPackedRepeatedFields:
                   'field_json_name': None,
                   'repeated': False,
                   'field_number': 6,
-                  'field_type': None,
+                  'field_type': 'TYPE_STRING',
                   'path': '$',
                   'type': 'field',
                   'value': '\x01\x02\x03'},

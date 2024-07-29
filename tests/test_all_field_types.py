@@ -118,7 +118,7 @@ class TestAllFieldTypes:
                  '}\n'
                  'all_len: {\n'
                  ' a_string: "A nice string"\n'
-                 ' some_bytes: "\x01\x02\x03\x04\x05\x06\\a\\b\\t"\n'
+                 ' some_bytes: "\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x09"\n'
                  '}\n'
                  'level1: {\n'
                  ' level2: {\n'

@@ -38,7 +38,6 @@ DROP PROCEDURE IF EXISTS _myproto_append_path_value;
 DROP PROCEDURE IF EXISTS _myproto_append_start_submessage;
 DROP PROCEDURE IF EXISTS _myproto_get_field_and_wiretype;
 DROP PROCEDURE IF EXISTS _myproto_get_field_properties;
-DROP PROCEDURE IF EXISTS _myproto_get_field_value;
 DROP PROCEDURE IF EXISTS _myproto_get_fixed_number_value;
 DROP PROCEDURE IF EXISTS _myproto_get_i32_value;
 DROP PROCEDURE IF EXISTS _myproto_get_i64_value;
@@ -179,16 +178,26 @@ CREATE PROCEDURE _myproto_get_i64_value(IN p_bytes blob, INOUT p_offset integer,
   END;
 //
 
-CREATE PROCEDURE _myproto_get_len_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, OUT p_value JSON)
+CREATE PROCEDURE _myproto_get_len_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, INOUT p_field_type text, OUT p_value JSON)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
 
   DECLARE length integer;
+  DECLARE binary_value blob;
+  DECLARE utf8_value text charset utf8mb4;
   CALL _myproto_var_int(p_bytes, p_offset, p_limit, length);
   IF p_offset + length > p_limit THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = error_text_exceeds_limit;
   ELSE
-    SET p_value = JSON_QUOTE(cast(substr(p_bytes, p_offset, length) as char));
+    SET binary_value = substr(p_bytes, p_offset, length);
+    SET utf8_value = CONVERT(binary_value USING utf8mb4);
+    IF p_field_type = 'TYPE_BYTES' or utf8_value IS NULL THEN
+        SET utf8_value = TO_BASE64(binary_value);
+        SET p_field_type = 'TYPE_BYTES';
+    ELSE
+        SET p_field_type = 'TYPE_STRING';
+    END IF;
+    SET p_value = JSON_QUOTE(utf8_value);
     SET p_offset = p_offset + length;
   END IF;
 END;
@@ -226,28 +235,6 @@ BEGIN
 
     SET p_offset = offset;
   END IF;
-END;
-//
-
-CREATE PROCEDURE _myproto_get_field_value(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, IN p_wiretype integer, OUT p_value JSON)
-BEGIN
-  DECLARE error_text varchar(128) default CONCAT('Invalid wiretype ', p_wiretype);
-
-  DECLARE varint integer;
-  CASE p_wiretype
-      WHEN 0 THEN
-        CALL _myproto_var_int(p_bytes, p_offset, p_limit, varint);
-        SET p_value = cast(varint as JSON);
-      WHEN 1 THEN
-        CALL _myproto_get_i64_value(p_bytes, p_offset, p_limit, p_value);
-      WHEN 5 THEN
-        CALL _myproto_get_i32_value(p_bytes, p_offset, p_limit, p_value);
-      WHEN 2 THEN
-        CALL _myproto_get_len_value(p_bytes, p_offset, p_limit, p_value);
-      ELSE
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = error_text;
-    END CASE;
 END;
 //
 
@@ -639,6 +626,7 @@ CREATE PROCEDURE _myproto_recover_from_error(
 BEGIN
     DECLARE in_error_state boolean default true;
     DECLARE value JSON;
+    DECLARE field_type text;
 
     WHILE in_error_state and JSON_LENGTH(p_stack) > 0 DO
         BEGIN
@@ -652,9 +640,9 @@ BEGIN
             CALL _myproto_pop_frame_and_reset(p_stack, p_offset,p_limit, p_path, p_field_number, p_field_name, p_message_type);
             CALL _myproto_undo_appended_fields(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number);
             SET in_error_state = false;
-            CALL _myproto_get_len_value(p_bytes, p_offset, p_limit, value);
+            CALL _myproto_get_len_value(p_bytes, p_offset, p_limit, field_type, value);
             IF not in_error_state THEN
-                CALL _myproto_append_path_value(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number, p_field_name, p_field_json_name, NULL, NULL, value);
+                CALL _myproto_append_path_value(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number, p_field_name, p_field_json_name, field_type, NULL, value);
             END IF;
         END;
     END WHILE;
@@ -697,7 +685,7 @@ BEGIN
                 ELSEIF repeated AND packed AND _myproto_is_scalar(field_type) THEN
                     CALL _myproto_packed_scalar(p_bytes, offset, m_limit, message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type);
                 ELSE
-                    CALL _myproto_get_len_value(p_bytes, offset, m_limit, value);
+                    CALL _myproto_get_len_value(p_bytes, offset, m_limit, field_type, value);
                     CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, repeated, value);
                 END IF;
             ELSEIF _myproto_wiretype_sgroup(wiretype) THEN
@@ -726,13 +714,12 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_to_utf8_textformat_string(string blob) returns text deterministic
+CREATE FUNCTION _myproto_to_utf8_textformat_string(p_string text, p_field_type text) returns text deterministic
 BEGIN
- declare utf8 text default CONVERT(string USING utf8mb4);
- IF utf8 IS NULL THEN
-    RETURN _myproto_textformat_escape_binary(string);
+ IF p_field_type = 'TYPE_BYTES' THEN
+    RETURN _myproto_textformat_escape_binary(FROM_BASE64(p_string));
  ELSE
-    RETURN _myproto_textformat_escape(utf8);
+    RETURN _myproto_textformat_escape(p_string);
  END IF;
 END;
 //
@@ -796,7 +783,7 @@ BEGIN
         IF type = 'field' THEN
             SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
             IF JSON_TYPE(value) = 'STRING' THEN
-                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': "', _myproto_to_utf8_textformat_string(JSON_UNQUOTE(value)), '"\n');
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': "', _myproto_to_utf8_textformat_string(JSON_UNQUOTE(value), field_type), '"\n');
             ELSEIF JSON_TYPE(value) = 'ARRAY' AND ((field_type = 'TYPE_FLOAT') OR (field_type = 'TYPE_DOUBLE')) THEN
                 SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(REPLACE(REPLACE(REPLACE(cast(value as char), ',', ''), '[', '{'), ']', 'f}'), ' ', 'f '), '\n');
             ELSEIF JSON_TYPE(value) = 'ARRAY' THEN
@@ -822,32 +809,11 @@ BEGIN
 END;
 //
 
-CREATE FUNCTION _myproto_binary_to_base64(p_value JSON, p_field_type text) returns JSON deterministic
-BEGIN
-    DECLARE value blob;
-    DECLARE result text charset utf8mb4;
-    IF JSON_TYPE(p_value) = 'STRING' THEN
-        SET value = JSON_UNQUOTE(p_value);
-        IF p_field_type = 'TYPE_BYTES' THEN
-            RETURN JSON_QUOTE(TO_BASE64(value));
-        END IF;
-        SET result = convert(value using utf8mb4);
-        IF result IS NULL THEN
-            RETURN JSON_QUOTE(TO_BASE64(value));
-        ELSE
-            RETURN JSON_QUOTE(result);
-        END IF;
-    END IF;
-    RETURN p_value;
-END;
-//
-
 CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_field_type text, IN p_repeated boolean, IN p_value JSON, OUT p_new_path text)
 BEGIN
     DECLARE name text default IFNULL(p_field_json_name, IFNULL(p_field_name, CONCAT('"',p_field_number, '"')));
     DECLARE path text default CONCAT(REVERSE(p_path), '.', name);
     DECLARE existing_object_or_array JSON default JSON_EXTRACT(p_jsonformat, path);
-    SET p_value = _myproto_binary_to_base64(p_value, p_field_type);
     IF JSON_TYPE(existing_object_or_array) IS NULL AND p_repeated AND JSON_TYPE(p_value) = 'ARRAY' THEN
         SET p_jsonformat = JSON_SET(p_jsonformat, path, p_value);
         SET p_new_path = REVERSE(CONCAT(path, '[',JSON_LENGTH(p_value)-1,']'));

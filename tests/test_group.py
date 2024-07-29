@@ -75,7 +75,7 @@ class TestGroup:
                      'field_json_name': None,
                      'repeated': False,
                      'field_number': 1,
-                     'field_type': None,
+                     'field_type': 'TYPE_STRING',
                      'path': '$.1',
                      'type': 'field',
                      'value': 'a group'},

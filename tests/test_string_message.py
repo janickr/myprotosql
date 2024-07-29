@@ -33,7 +33,7 @@ class TestStringMessage:
                         'field_name': None,
                         'field_json_name': None,
                         'repeated': False,
-                        'field_type': None,
+                        'field_type': 'TYPE_STRING',
                         'field_number': 2
                     }
                 ])
@@ -51,7 +51,7 @@ class TestStringMessage:
                         'field_name': None,
                         'field_json_name': None,
                         'repeated': False,
-                        'field_type': None,
+                        'field_type': 'TYPE_STRING',
                         'field_number': 2
                     }
                 ])
@@ -69,7 +69,7 @@ class TestStringMessage:
                         'field_name': None,
                         'field_json_name': None,
                         'repeated': False,
-                        'field_type': None,
+                        'field_type': 'TYPE_STRING',
                         'field_number': 2
                     }
                 ])

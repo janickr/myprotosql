@@ -29,11 +29,11 @@ class TestBytesMessage:
                         'path': '$',
                         'type': 'field',
                         'depth': 0,
-                        'value': '�\x00\x00\x00\x00\x00�?\x00\x00 @',
+                        'value': '/wAAAAAAwD8AACBA',
                         'field_name': None,
                         'field_json_name': None,
                         'repeated': False,
-                        'field_type': None,
+                        'field_type': 'TYPE_BYTES',
                         'field_number': 7
                     }
                 ])
@@ -47,7 +47,7 @@ class TestBytesMessage:
                         "path": "$",
                         "type": "field",
                         "depth": 0,
-                        "value": '�\x00\x00\x00\x00\x00�?\x00\x00 @',
+                        "value": '/wAAAAAAwD8AACBA',
                         "field_name": "binary",
                         "field_json_name": "binary",
                         'repeated': False,
