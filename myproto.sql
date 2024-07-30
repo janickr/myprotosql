@@ -28,6 +28,8 @@ DROP FUNCTION IF EXISTS _myproto_reinterpret_as_float;
 DROP FUNCTION IF EXISTS _myproto_textformat;
 DROP FUNCTION IF EXISTS _myproto_textformat_escape;
 DROP FUNCTION IF EXISTS _myproto_textformat_escape_binary;
+DROP FUNCTION IF EXISTS _myproto_text_format_escape;
+DROP FUNCTION IF EXISTS _myproto_to_utf8_string;
 DROP FUNCTION IF EXISTS _myproto_to_utf8_textformat_string;
 DROP FUNCTION IF EXISTS _myproto_unquote;
 DROP FUNCTION IF EXISTS _myproto_wiretype_egroup;
@@ -37,6 +39,7 @@ DROP PROCEDURE IF EXISTS _myproto_append_path_value;
 DROP PROCEDURE IF EXISTS _myproto_append_start_submessage;
 DROP PROCEDURE IF EXISTS _myproto_get_field_and_wiretype;
 DROP PROCEDURE IF EXISTS _myproto_get_field_properties;
+DROP PROCEDURE IF EXISTS _myproto_get_field_value;
 DROP PROCEDURE IF EXISTS _myproto_get_fixed_number_value;
 DROP PROCEDURE IF EXISTS _myproto_get_i32_value;
 DROP PROCEDURE IF EXISTS _myproto_get_i64_value;
@@ -47,6 +50,7 @@ DROP PROCEDURE IF EXISTS _myproto_interpret_int64_value;
 DROP PROCEDURE IF EXISTS _myproto_interpret_varint_value;
 DROP PROCEDURE IF EXISTS _myproto_json_add_value;
 DROP PROCEDURE IF EXISTS _myproto_len_limit;
+DROP PROCEDURE IF EXISTS _myproto_lookup_enum_value_if_enum_type;
 DROP PROCEDURE IF EXISTS _myproto_packed_scalar;
 DROP PROCEDURE IF EXISTS _myproto_pop_frame;
 DROP PROCEDURE IF EXISTS _myproto_pop_frame_and_reset;
@@ -55,7 +59,6 @@ DROP PROCEDURE IF EXISTS _myproto_recover_from_error;
 DROP PROCEDURE IF EXISTS _myproto_undo_appended_fields;
 DROP PROCEDURE IF EXISTS _myproto_validate_wiretype_and_field_type;
 DROP PROCEDURE IF EXISTS _myproto_var_int;
-DROP PROCEDURE IF EXISTS _myproto_lookup_enum_value_if_enum_type;
 
 
 delimiter //
