@@ -40,6 +40,9 @@ def _build_message_type_index(message_type, packed_default):
 
     return index
 
+def _build_enum_type_index(enum_type):
+    return {enum_type.name: {'values': {value.number: value.name for value in enum_type.value}}}
+
 
 def _build_file_index(proto_file):
     index = {}
@@ -49,7 +52,11 @@ def _build_file_index(proto_file):
             index = index | {f'.{proto_file.package}.{name}': fields for name, fields in _build_message_type_index(message_type, packed_default).items()}
         else:
             index = index | {f'.{name}': fields for name, fields in _build_message_type_index(message_type, packed_default).items()}
-
+    for enum_type in proto_file.enum_type:
+        if proto_file.package:
+            index = index | {f'.{proto_file.package}.{name}': values for name, values in _build_enum_type_index(enum_type).items()}
+        else:
+            index = index | {f'.{name}': values for name, values in _build_enum_type_index(enum_type).items()}
     return index
 
 

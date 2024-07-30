@@ -1,0 +1,12 @@
+
+enum AnEnum {
+  A_VALUE = 0;
+  ANOTHER_VALUE = 1;
+  A_THIRD_VALUE = 2;
+}
+
+message Enums {
+  optional AnEnum a_single_enum = 1;
+  repeated AnEnum a_list = 2;
+  repeated AnEnum a_packed_list = 3 [packed=true];
+}

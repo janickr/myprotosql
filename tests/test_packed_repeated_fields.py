@@ -110,7 +110,7 @@ class TestPackedRepeatedFields:
         message.f.append(2)
         message.f.append(3)
 
-        assert myprotosql.decode_textformat(message.SerializeToString(), 'PackedFields') == 'f: {1 2 3}\n'
+        assert myprotosql.decode_textformat(message.SerializeToString(), 'PackedFields') == 'f: [1, 2, 3]\n'
 
     def test_decode_textformat_has_f_for_floats(self, myprotosql: MyProtoSql):
         message = packed_pb2.PackedFields()
@@ -118,7 +118,7 @@ class TestPackedRepeatedFields:
         message.more_floats.append(1.5)
         message.more_floats.append(2.5)
 
-        assert myprotosql.decode_textformat(message.SerializeToString(), 'PackedFields') == 'more_floats: {0.0f 1.5f 2.5f}\n'
+        assert myprotosql.decode_textformat(message.SerializeToString(), 'PackedFields') == 'more_floats: [0.0f, 1.5f, 2.5f]\n'
 
     def test_v3_decode_textformat(self, myprotosql: MyProtoSql):
         message = repeatedv3_pb2.RepeatedV3()
@@ -126,5 +126,5 @@ class TestPackedRepeatedFields:
         message.f.append(2)
         message.f.append(3)
 
-        assert myprotosql.decode_textformat(message.SerializeToString(), 'RepeatedV3') == 'f: {1 2 3}\n'
+        assert myprotosql.decode_textformat(message.SerializeToString(), 'RepeatedV3') == 'f: [1, 2, 3]\n'
 

@@ -17,7 +17,6 @@
 
 DROP FUNCTION IF EXISTS myproto_decode_to_jsonformat;
 DROP FUNCTION IF EXISTS myproto_decode_to_textformat;
-DROP FUNCTION IF EXISTS _myproto_binary_to_base64;
 DROP FUNCTION IF EXISTS _myproto_field_type_to_wiretype;
 DROP FUNCTION IF EXISTS _myproto_flatten_message;
 DROP FUNCTION IF EXISTS _myproto_is_frame_field;
@@ -56,6 +55,7 @@ DROP PROCEDURE IF EXISTS _myproto_recover_from_error;
 DROP PROCEDURE IF EXISTS _myproto_undo_appended_fields;
 DROP PROCEDURE IF EXISTS _myproto_validate_wiretype_and_field_type;
 DROP PROCEDURE IF EXISTS _myproto_var_int;
+DROP PROCEDURE IF EXISTS _myproto_lookup_enum_value_if_enum_type;
 
 
 delimiter //
@@ -75,6 +75,7 @@ create function _myproto_is_scalar(p_field_type text) returns boolean determinis
                 OR p_field_type like 'TYPE_UINT%'
                 OR p_field_type like 'TYPE_SINT%'
                 OR p_field_type like 'TYPE_BOOL'
+                OR p_field_type like 'TYPE_ENUM'
                 OR p_field_type like 'TYPE_FIXED%'
                 OR p_field_type like 'TYPE_FLOAT'
                 OR p_field_type like 'TYPE_DOUBLE';
@@ -88,7 +89,8 @@ create function _myproto_field_type_to_wiretype(p_field_type text) returns boole
         IF p_field_type like 'TYPE_INT%'
                 OR p_field_type like 'TYPE_UINT%'
                 OR p_field_type like 'TYPE_SINT%'
-                OR p_field_type like 'TYPE_BOOL' THEN
+                OR p_field_type like 'TYPE_BOOL'
+                OR p_field_type like 'TYPE_ENUM' THEN
             RETURN 0;
         ELSEIF p_field_type like 'TYPE_FIXED32' OR p_field_type like 'TYPE_FLOAT' THEN
             RETURN 5;
@@ -213,7 +215,9 @@ CREATE PROCEDURE _myproto_packed_scalar(
     IN p_field_number integer,
     IN p_field_name text,
     IN p_field_json_name text,
-    IN p_field_type text)
+    IN p_field_type text,
+    IN p_enum_type text,
+    IN p_protos JSON)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
 
@@ -229,6 +233,8 @@ BEGIN
   ELSE
     WHILE offset < p_offset + length DO
         CALL _myproto_get_number_field_value(p_bytes, offset, p_offset + length, wiretype, value, p_field_type);
+        CALL _myproto_lookup_enum_value_if_enum_type(p_field_type, p_enum_type, p_protos, value);
+
         SET value_list = JSON_ARRAY_APPEND(value_list, '$', value);
     END WHILE;
     CALL _myproto_append_path_value(p_message, p_depth, p_parent_path, p_field_number, p_field_name, p_field_json_name, p_field_type, True, value_list);
@@ -260,6 +266,8 @@ BEGIN
             SET p_value = cast(cast(((p_int >> 1) ^ (-(p_int & 1))) as signed) as JSON);
           WHEN 'TYPE_BOOL' THEN
             SET p_value = cast((p_int & 1)=1 as JSON);
+          WHEN 'TYPE_ENUM' THEN
+            SET p_value = cast(cast(p_int as signed) as JSON);
           ELSE
             SIGNAL SQLSTATE '45000'
                 SET MESSAGE_TEXT = error_text;
@@ -403,6 +411,17 @@ BEGIN
 END;
 //
 
+CREATE PROCEDURE  _myproto_lookup_enum_value_if_enum_type(IN p_field_type text, IN p_enum_type text, IN p_protos JSON, INOUT p_value json)
+BEGIN
+    DECLARE enum_value JSON;
+    IF p_field_type = 'TYPE_ENUM' THEN
+        SET enum_value = JSON_EXTRACT(p_protos, CONCAT('$."', p_enum_type, '".values."', p_value, '"'));
+        IF enum_value IS NOT NULL THEN
+            SET p_value = enum_value;
+        END IF;
+    END IF;
+END;
+//
 
 CREATE PROCEDURE _myproto_push_frame(
     INOUT p_stack JSON,
@@ -683,7 +702,7 @@ BEGIN
                     CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, message_type, sub_message_type);
                     CALL _myproto_len_limit(p_bytes, offset, m_limit);
                 ELSEIF repeated AND packed AND _myproto_is_scalar(field_type) THEN
-                    CALL _myproto_packed_scalar(p_bytes, offset, m_limit, message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type);
+                    CALL _myproto_packed_scalar(p_bytes, offset, m_limit, message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, sub_message_type, p_protos);
                 ELSE
                     CALL _myproto_get_len_value(p_bytes, offset, m_limit, field_type, value);
                     CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, repeated, value);
@@ -700,6 +719,7 @@ BEGIN
                 END IF;
             ELSE
                 CALL _myproto_get_number_field_value(p_bytes, offset, m_limit, wiretype, value, field_type);
+                CALL _myproto_lookup_enum_value_if_enum_type(field_type, sub_message_type, p_protos, value);
                 CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, repeated, value );
             END IF;
 
@@ -782,12 +802,16 @@ BEGIN
         END IF;
         IF type = 'field' THEN
             SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
-            IF JSON_TYPE(value) = 'STRING' THEN
+            IF JSON_TYPE(value) = 'STRING' AND field_type = 'TYPE_ENUM' THEN
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', JSON_UNQUOTE(value), '\n');
+            ELSEIF JSON_TYPE(value) = 'STRING' THEN
                 SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': "', _myproto_to_utf8_textformat_string(JSON_UNQUOTE(value), field_type), '"\n');
             ELSEIF JSON_TYPE(value) = 'ARRAY' AND ((field_type = 'TYPE_FLOAT') OR (field_type = 'TYPE_DOUBLE')) THEN
-                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(REPLACE(REPLACE(REPLACE(cast(value as char), ',', ''), '[', '{'), ']', 'f}'), ' ', 'f '), '\n');
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(REPLACE(cast(value as char), ']', 'f]'), ', ', 'f, '), '\n');
+            ELSEIF JSON_TYPE(value) = 'ARRAY' AND (field_type = 'TYPE_ENUM') THEN
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(cast(value as char), '"', ''), '\n');
             ELSEIF JSON_TYPE(value) = 'ARRAY' THEN
-                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', REPLACE(REPLACE(REPLACE(cast(value as char), ',', ''), '[', '{'), ']', '}'), '\n');
+                SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', cast(value as char), '\n');
             ELSEIF (field_type = 'TYPE_FLOAT') OR (field_type = 'TYPE_DOUBLE') THEN
                 SET textformat = CONCAT(textformat, SPACE(depth), IFNULL(field_name, field_number), ': ', value, 'f\n');
             ELSE
@@ -809,7 +833,7 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_field_type text, IN p_repeated boolean, IN p_value JSON, OUT p_new_path text)
+CREATE PROCEDURE _myproto_json_add_value(INOUT p_jsonformat JSON, IN p_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_repeated boolean, IN p_value JSON, OUT p_new_path text)
 BEGIN
     DECLARE name text default IFNULL(p_field_json_name, IFNULL(p_field_name, CONCAT('"',p_field_number, '"')));
     DECLARE path text default CONCAT(REVERSE(p_path), '.', name);
@@ -865,9 +889,9 @@ BEGIN
         END IF;
         IF type = 'field' THEN
             SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
-            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, field_type, repeated, value, not_needed);
+            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, repeated, value, not_needed);
         ELSE
-            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, field_type, repeated, JSON_OBJECT(), path);
+            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, repeated, JSON_OBJECT(), path);
         END IF;
 
         SET previous_depth = depth;

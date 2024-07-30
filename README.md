@@ -103,8 +103,6 @@ Returns:
 
 
 ## Todo
-- enums
 - todos in code
 - maps
-- bytes/proper escaping
 - mysql 5.7 and integer float doc
