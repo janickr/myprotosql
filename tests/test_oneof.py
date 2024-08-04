@@ -25,25 +25,33 @@ class TestOneOf:
         message.sub_message.a = 123456
 
         assert (myprotosql.decode(message.SerializeToString(), 'OneOfMessage') ==
-                [
-                    {'depth': 0,
-                     'field_name': 'sub_message',
-                     'field_json_name': 'subMessage',
-                     'repeated': False,
-                     'field_number': 9,
-                     'message_type': '.OneOfSubMessage',
-                     'path': '$',
-                     'type': 'message'},
-                    {'depth': 1,
-                     'field_name': 'a',
-                     'field_json_name': 'a',
-                     'repeated': False,
-                     'field_number': 1,
-                     'field_type': 'TYPE_INT32',
-                     'path': '$.9',
-                     'type': 'field',
-                     'value': 123456}
-                ])
+                [{'depth': 0,
+                  'field_json_name': 'subMessage',
+                  'field_name': 'sub_message',
+                  'field_number': 9,
+                  'field_type': 'TYPE_MESSAGE',
+                  'message_type': '.OneOfSubMessage',
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'start message'},
+                 {'depth': 1,
+                  'field_json_name': 'a',
+                  'field_name': 'a',
+                  'field_number': 1,
+                  'field_type': 'TYPE_INT32',
+                  'path': '$.9',
+                  'repeated': False,
+                  'type': 'field',
+                  'value': 123456},
+                 {'depth': 0,
+                  'field_json_name': 'a',
+                  'field_name': 'sub_message',
+                  'field_number': 9,
+                  'field_type': 'TYPE_MESSAGE',
+                  'message_type': 'null',
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'end message'}])
 
     def test_decode_string(self, myprotosql: MyProtoSql):
         message = oneof_pb2.OneOfMessage()
@@ -67,25 +75,33 @@ class TestOneOf:
         message.sub_message.a = 123456
 
         assert (myprotosql.decode_raw(message.SerializeToString()) ==
-                [
-                    {'depth': 0,
-                     'field_name': None,
-                     'field_json_name': None,
-                     'repeated': False,
-                     'field_number': 9,
-                     'message_type': None,
-                     'path': '$',
-                     'type': 'message'},
-                    {'depth': 1,
-                     'field_name': None,
-                     'field_json_name': None,
-                     'repeated': False,
-                     'field_number': 1,
-                     'field_type': None,
-                     'path': '$.9',
-                     'type': 'field',
-                     'value': 123456}
-                ])
+                [{'depth': 0,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 9,
+                  'field_type': None,
+                  'message_type': None,
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'start message'},
+                 {'depth': 1,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 1,
+                  'field_type': None,
+                  'path': '$.9',
+                  'repeated': False,
+                  'type': 'field',
+                  'value': 123456},
+                 {'depth': 0,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 9,
+                  'field_type': None,
+                  'message_type': None,
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'end message'}])
 
     def test_decode_raw_string(self, myprotosql: MyProtoSql):
         message = oneof_pb2.OneOfMessage()

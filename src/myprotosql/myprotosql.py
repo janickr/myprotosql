@@ -68,6 +68,38 @@ def _build_index(request):
     return index
 
 
+def _mark_possible_maps(message_types: dict):
+    for message_type_name, message_type in message_types.items():
+        for field_descriptor in message_type.get('fields', {}).values():
+            if is_probably_a_map(field_descriptor, message_type_name, message_types):
+                field_descriptor['type'] = 'PROBABLY_MAP'
+
+    return message_types
+
+
+def to_camel_case(snake_case: str):
+    return ''.join(word.title() for word in snake_case.split('_'))
+
+
+def to_map_type_name(message_type_name: str, field_name: str):
+    return message_type_name + '.' + to_camel_case(field_name) + 'Entry'
+
+
+def looks_like_a_map_type(map_type_name, message_types):
+    return {
+        field_descriptor['name']
+        for field_descriptor in message_types.get(map_type_name, {}).get('fields', {}).values()
+    } == {'key', 'value'}
+
+
+def is_probably_a_map(field_descriptor, message_type_name, message_types):
+    map_type_name = to_map_type_name(message_type_name, field_descriptor['name'])
+    return (field_descriptor['type'] == 'TYPE_MESSAGE'
+            and field_descriptor['repeated']
+            and field_descriptor['typeName'] == map_type_name
+            and looks_like_a_map_type(map_type_name, message_types))
+
+
 def run_plugin():
     request = plugin.CodeGeneratorRequest.FromString(sys.stdin.buffer.read())
     response = plugin.CodeGeneratorResponse()
@@ -75,7 +107,7 @@ def run_plugin():
     generated_file = response.file.add()
 
     generated_file.name = "myproto_descriptors.sql"
-    descriptors = _build_index(request)
+    descriptors = _mark_possible_maps(_build_index(request))
 
     generated_file.content = f'''
 DROP FUNCTION IF EXISTS myproto_descriptors;

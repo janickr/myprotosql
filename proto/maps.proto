@@ -1,0 +1,17 @@
+
+message MapValue {
+  optional string a_value = 1;
+}
+
+enum EnumValue {
+  VAL0 = 0;
+  VAL1 = 1;
+}
+
+message Maps {
+  map<int32, string> simple = 1;
+  map<string, MapValue> messages = 2;
+  map<string, EnumValue> enums = 3;
+  map<string, EnumValue> a_snake_cased_name = 4;
+  map<string, EnumValue> a_snake_cased_name_with_json_name = 5 [json_name="anotherName"];
+}

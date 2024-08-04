@@ -25,50 +25,66 @@ class TestSubmessage:
         message.c.a = 123456
 
         assert (myprotosql.decode(message.SerializeToString(), 'ParentMessage') ==
-                [
-                    {'depth': 0,
-                     'field_name': 'c',
-                     'field_json_name': 'c',
-                     'repeated': False,
-                     'field_number': 3,
-                     'message_type': '.SubMessage',
-                     'path': '$',
-                     'type': 'message'},
-                    {'depth': 1,
-                     'field_name': 'a',
-                     'field_json_name': 'a',
-                     'repeated': False,
-                     'field_number': 1,
-                     'field_type': 'TYPE_INT32',
-                     'path': '$.3',
-                     'type': 'field',
-                     'value': 123456}
-                ])
+                [{'depth': 0,
+                  'field_json_name': 'c',
+                  'field_name': 'c',
+                  'field_number': 3,
+                  'field_type': 'TYPE_MESSAGE',
+                  'message_type': '.SubMessage',
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'start message'},
+                 {'depth': 1,
+                  'field_json_name': 'a',
+                  'field_name': 'a',
+                  'field_number': 1,
+                  'field_type': 'TYPE_INT32',
+                  'path': '$.3',
+                  'repeated': False,
+                  'type': 'field',
+                  'value': 123456},
+                 {'depth': 0,
+                  'field_json_name': 'a',
+                  'field_name': 'c',
+                  'field_number': 3,
+                  'field_type': 'TYPE_MESSAGE',
+                  'message_type': 'null',
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'end message'}])
 
     def test_decode_raw(self, myprotosql: MyProtoSql):
         message = submessage_pb2.ParentMessage()
         message.c.a = 123456
 
         assert (myprotosql.decode_raw(message.SerializeToString()) ==
-                [
-                    {'depth': 0,
-                     'field_name': None,
-                     'field_json_name': None,
-                     'repeated': False,
-                     'field_number': 3,
-                     'message_type': None,
-                     'path': '$',
-                     'type': 'message'},
-                    {'depth': 1,
-                     'field_name': None,
-                     'field_json_name': None,
-                     'repeated': False,
-                     'field_number': 1,
-                     'field_type': None,
-                     'path': '$.3',
-                     'type': 'field',
-                     'value': 123456}
-                ])
+                [{'depth': 0,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 3,
+                  'field_type': None,
+                  'message_type': None,
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'start message'},
+                 {'depth': 1,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 1,
+                  'field_type': None,
+                  'path': '$.3',
+                  'repeated': False,
+                  'type': 'field',
+                  'value': 123456},
+                 {'depth': 0,
+                  'field_json_name': None,
+                  'field_name': None,
+                  'field_number': 3,
+                  'field_type': None,
+                  'message_type': None,
+                  'path': '$',
+                  'repeated': False,
+                  'type': 'end message'}])
 
     def test_decode_raw_jsonformat(self, myprotosql: MyProtoSql):
         message = submessage_pb2.ParentMessage()

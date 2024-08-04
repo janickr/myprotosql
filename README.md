@@ -104,5 +104,7 @@ Returns:
 
 ## Todo
 - todos in code
-- maps
+- Any
+- Extensions
+- Well known types
 - mysql 5.7 and integer float doc
