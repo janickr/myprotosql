@@ -34,6 +34,7 @@ class TestStringMessage:
                         'field_json_name': None,
                         'repeated': False,
                         'field_type': 'TYPE_STRING',
+                        'field_type_name': None,
                         'field_number': 2
                     }
                 ])
@@ -52,6 +53,7 @@ class TestStringMessage:
                         'field_json_name': None,
                         'repeated': False,
                         'field_type': 'TYPE_STRING',
+                        'field_type_name': None,
                         'field_number': 2
                     }
                 ])
@@ -70,6 +72,7 @@ class TestStringMessage:
                         'field_json_name': None,
                         'repeated': False,
                         'field_type': 'TYPE_STRING',
+                        'field_type_name': None,
                         'field_number': 2
                     }
                 ])
@@ -88,6 +91,7 @@ class TestStringMessage:
                         "field_json_name": "b",
                         'repeated': False,
                         "field_type": "TYPE_STRING",
+                        'field_type_name': None,
                         "field_number": 2
                     }
                 ])
@@ -106,6 +110,7 @@ class TestStringMessage:
                         "field_json_name": "b",
                         'repeated': False,
                         "field_type": "TYPE_STRING",
+                        'field_type_name': None,
                         "field_number": 2
                     }
                 ])

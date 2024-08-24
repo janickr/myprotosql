@@ -34,6 +34,7 @@ class TestBytesMessage:
                         'field_json_name': None,
                         'repeated': False,
                         'field_type': 'TYPE_BYTES',
+                        'field_type_name': None,
                         'field_number': 7
                     }
                 ])
@@ -52,6 +53,7 @@ class TestBytesMessage:
                         "field_json_name": "binary",
                         'repeated': False,
                         "field_type": "TYPE_BYTES",
+                        'field_type_name': None,
                         "field_number": 7
                     }
                 ])

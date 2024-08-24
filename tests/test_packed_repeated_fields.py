@@ -34,6 +34,7 @@ class TestPackedRepeatedFields:
                   'repeated': True,
                   'field_number': 6,
                   'field_type': 'TYPE_INT32',
+                  'field_type_name': None,
                   'path': '$',
                   'type': 'field',
                   'value': [1, 2, 3]}])
@@ -51,6 +52,7 @@ class TestPackedRepeatedFields:
                   'repeated': False,
                   'field_number': 6,
                   'field_type': 'TYPE_STRING',
+                  'field_type_name': None,
                   'path': '$',
                   'type': 'field',
                   'value': '\x01\x02\x03'},

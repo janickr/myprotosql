@@ -1,7 +1,28 @@
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/wrappers.proto";
 
 message WellKnownTypes {
   optional google.protobuf.Timestamp a_timestamp = 1;
-  optional google.protobuf.Duration a_duration = 2;
+  optional google.protobuf.Duration a_duration =  2;
+  optional google.protobuf.Any a_any = 3;
+  optional google.protobuf.Empty a_empty = 4;
+  optional google.protobuf.NullValue a_nullvalue = 5;
+  optional google.protobuf.Struct a_struct = 6;
+  optional google.protobuf.Value a_value = 7;
+  optional google.protobuf.FieldMask a_fieldmask = 8;
+  optional google.protobuf.ListValue a_listvalue = 9;
+  optional google.protobuf.BoolValue a_boolvalue = 10;
+  optional google.protobuf.BytesValue a_bytesvalue = 11;
+  optional google.protobuf.DoubleValue a_doublevalue = 12;
+  optional google.protobuf.FloatValue a_floatvalue = 13;
+  optional google.protobuf.Int32Value a_int32value = 14;
+  optional google.protobuf.Int64Value a_int64value = 15;
+  optional google.protobuf.StringValue a_stringvalue = 16;
+  optional google.protobuf.UInt32Value a_uint32value = 17;
+  optional google.protobuf.UInt64Value a_uint64value = 18;
 }

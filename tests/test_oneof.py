@@ -39,6 +39,7 @@ class TestOneOf:
                   'field_name': 'a',
                   'field_number': 1,
                   'field_type': 'TYPE_INT32',
+                  'field_type_name': None,
                   'path': '$.9',
                   'repeated': False,
                   'type': 'field',
@@ -48,7 +49,7 @@ class TestOneOf:
                   'field_name': 'sub_message',
                   'field_number': 9,
                   'field_type': 'TYPE_MESSAGE',
-                  'message_type': 'null',
+                  'message_type': '.OneOfSubMessage',
                   'path': '$',
                   'repeated': False,
                   'type': 'end message'}])
@@ -65,6 +66,7 @@ class TestOneOf:
                      'repeated': False,
                      'field_number': 4,
                      'field_type': 'TYPE_STRING',
+                     'field_type_name': None,
                      'path': '$',
                      'type': 'field',
                      'value': 'a string'}
@@ -89,6 +91,7 @@ class TestOneOf:
                   'field_name': None,
                   'field_number': 1,
                   'field_type': None,
+                  'field_type_name': None,
                   'path': '$.9',
                   'repeated': False,
                   'type': 'field',
@@ -115,6 +118,7 @@ class TestOneOf:
                      'repeated': False,
                      'field_number': 4,
                      'field_type': 'TYPE_STRING',
+                     'field_type_name': None,
                      'path': '$',
                      'type': 'field',
                      'value': 'a string'}

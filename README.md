@@ -108,3 +108,7 @@ Returns:
 - Extensions
 - Well known types
 - mysql 5.7 and integer float doc
+
+- cleanup stack 
+- remove path
+- better debugging experience

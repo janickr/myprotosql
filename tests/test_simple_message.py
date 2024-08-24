@@ -34,6 +34,7 @@ class TestSimpleMessage:
                         'field_json_name': 'a',
                         'repeated': False,
                         'field_type': 'TYPE_INT32',
+                        'field_type_name': None,
                         'field_number': 1
                     }
                 ])
@@ -50,6 +51,7 @@ class TestSimpleMessage:
                         'value': 123456,
                         'field_name': None,
                         'field_json_name': None,
+                        'field_type_name': None,
                         'repeated': False,
                         'field_type': None,
                         'field_number': 1

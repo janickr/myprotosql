@@ -62,6 +62,20 @@ DROP PROCEDURE IF EXISTS _myproto_recover_from_error;
 DROP PROCEDURE IF EXISTS _myproto_undo_appended_fields;
 DROP PROCEDURE IF EXISTS _myproto_validate_wiretype_and_field_type;
 DROP PROCEDURE IF EXISTS _myproto_var_int;
+DROP PROCEDURE IF EXISTS _myproto_add_path_to_post_process;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_paths_at_same_depth;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_maps_and_well_known_types;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_timestamp;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_duration;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_any;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_struct;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_value;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_listvalue;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_nullvalue;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_fieldmask;
+DROP PROCEDURE IF EXISTS _myproto_json_post_process_wrapper_type;
+DROP FUNCTION IF EXISTS _myproto_snake_case_to_lower_camel_case;
+
 
 
 delimiter //
@@ -222,7 +236,7 @@ CREATE PROCEDURE _myproto_packed_scalar(
     IN p_field_name text,
     IN p_field_json_name text,
     IN p_field_type text,
-    IN p_enum_type text,
+    IN p_field_type_name text,
     IN p_protos JSON)
 BEGIN
   DECLARE error_text_exceeds_limit varchar(128) default CONCAT('len at offset ', p_offset, ' exceeds limit set by previous LEN ', p_limit);
@@ -239,11 +253,11 @@ BEGIN
   ELSE
     WHILE offset < p_offset + length DO
         CALL _myproto_get_number_field_value(p_bytes, offset, p_offset + length, wiretype, value, p_field_type);
-        CALL _myproto_lookup_enum_value_if_enum_type(p_field_type, p_enum_type, p_protos, value);
+        CALL _myproto_lookup_enum_value_if_enum_type(p_field_type, p_field_type_name, p_protos, value);
 
         SET value_list = JSON_ARRAY_APPEND(value_list, '$', value);
     END WHILE;
-    CALL _myproto_append_path_value(p_message, p_depth, p_parent_path, p_field_number, p_field_name, p_field_json_name, p_field_type, True, value_list);
+    CALL _myproto_append_path_value(p_message, p_depth, p_parent_path, p_field_number, p_field_name, p_field_json_name, p_field_type, p_field_type_name, True, value_list);
 
     SET p_offset = offset;
   END IF;
@@ -438,7 +452,7 @@ CREATE PROCEDURE _myproto_push_frame(
     IN p_field_name text,
     IN p_field_type text,
     INOUT p_message_type text,
-    IN p_sub_message_type text)
+    IN p_field_type_name text)
 BEGIN
         SET p_stack = JSON_ARRAY_INSERT(
                 p_stack,
@@ -450,9 +464,10 @@ BEGIN
                   'field_number', p_field_number,
                   'field_name', p_field_name,
                   'field_type', p_field_type,
-                  'message_type', p_message_type
+                  'message_type', p_message_type,
+                  'field_type_name', p_field_type_name
                 ));
-        SET p_message_type = p_sub_message_type;
+        SET p_message_type = p_field_type_name;
         IF (p_field_number) THEN
             SET p_path = CONCAT(p_path, '.', p_field_number);
         END IF;
@@ -467,7 +482,8 @@ CREATE PROCEDURE _myproto_pop_frame_and_reset(
     OUT p_field_number integer,
     OUT p_field_name text,
     OUT p_field_type text,
-    OUT p_message_type text)
+    OUT p_message_type text,
+    OUT p_field_type_name text)
     BEGIN
         SET p_offset = JSON_EXTRACT(p_stack, '$[0].offset');
         SET p_limit = JSON_EXTRACT(p_stack, '$[0].limit');
@@ -477,6 +493,7 @@ CREATE PROCEDURE _myproto_pop_frame_and_reset(
         SET p_field_name = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].field_name'));
         SET p_field_type = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].field_type'));
         SET p_message_type = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].message_type'));
+        SET p_field_type_name = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].field_type_name'));
     END;
 //
 
@@ -487,7 +504,8 @@ CREATE PROCEDURE _myproto_pop_frame(
     OUT p_field_number integer,
     OUT p_field_name text,
     OUT p_field_type text,
-    OUT p_message_type text)
+    OUT p_message_type text,
+    OUT p_field_type_name text)
     BEGIN
         SET p_limit = JSON_EXTRACT(p_stack, '$[0].limit');
         SET p_path = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].path'));
@@ -495,6 +513,7 @@ CREATE PROCEDURE _myproto_pop_frame(
         SET p_field_name = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].field_name'));
         SET p_field_type = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].field_type'));
         SET p_message_type = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].message_type'));
+        SET p_field_type_name = _myproto_unquote(JSON_EXTRACT(p_stack, '$[0].field_type_name'));
         SET p_stack = JSON_REMOVE(p_stack, '$[0]');
     END;
 //
@@ -539,7 +558,7 @@ CREATE FUNCTION _myproto_wiretype_egroup(p_wiretype integer) returns boolean det
     return p_wiretype = 4;
 //
 
-CREATE PROCEDURE _myproto_append_path_value(INOUT p_message JSON, IN p_depth integer, IN p_parent_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_field_type text, IN p_repeated boolean, IN p_value JSON)
+CREATE PROCEDURE _myproto_append_path_value(INOUT p_message JSON, IN p_depth integer, IN p_parent_path text, IN p_field_number integer, IN p_field_name text, IN p_field_json_name text, IN p_field_type text, IN p_field_type_name text, IN p_repeated boolean, IN p_value JSON)
 BEGIN
     SET p_message = JSON_ARRAY_APPEND(
             p_message,
@@ -552,6 +571,7 @@ BEGIN
                 'field_name', p_field_name,
                 'field_json_name', p_field_json_name,
                 'field_type', p_field_type,
+                'field_type_name', p_field_type_name,
                 'repeated', p_repeated IS NOT NULL and p_repeated,
                 'value', p_value
             ));
@@ -648,14 +668,14 @@ CREATE PROCEDURE _myproto_get_field_properties(
     OUT p_field_type text,
     OUT p_field_name text,
     OUT p_field_json_name text,
-    OUT p_sub_message_type text,
+    OUT p_field_type_name text,
     OUT p_repeated boolean,
     OUT p_packed boolean)
 BEGIN
-    SET p_field_type = JSON_UNQUOTE(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".type')));
-    SET p_field_name = JSON_UNQUOTE(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".name')));
-    SET p_field_json_name = JSON_UNQUOTE(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".jsonName')));
-    SET p_sub_message_type = JSON_UNQUOTE(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".typeName')));
+    SET p_field_type = _myproto_unquote(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".type')));
+    SET p_field_name = _myproto_unquote(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".name')));
+    SET p_field_json_name = _myproto_unquote(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".jsonName')));
+    SET p_field_type_name = _myproto_unquote(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".typeName')));
     SET p_repeated = cast(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".repeated')) as unsigned) = 1;
     SET p_packed = cast(JSON_EXTRACT(p_protos, CONCAT('$."', p_message_type, '".fields."', p_field_number, '".packed')) as unsigned) = 1;
     CALL _myproto_validate_wiretype_and_field_type(p_message_type, p_field_number, p_wiretype, p_field_type);
@@ -672,7 +692,8 @@ CREATE PROCEDURE _myproto_recover_from_error(
     OUT p_field_number integer,
     OUT p_field_name text,
     OUT p_field_json_name text,
-    OUT p_message_type text
+    OUT p_message_type text,
+    OUT p_field_type_name text
 )
 BEGIN
     DECLARE in_error_state boolean default true;
@@ -688,12 +709,12 @@ BEGIN
             END;
              -- check if stack > 1, if not there is a bug
                 -- resignal if not decode raw
-            CALL _myproto_pop_frame_and_reset(p_stack, p_offset,p_limit, p_path, p_field_number, p_field_name, field_type, p_message_type);
+            CALL _myproto_pop_frame_and_reset(p_stack, p_offset,p_limit, p_path, p_field_number, p_field_name, field_type, p_message_type, p_field_type_name);
             CALL _myproto_undo_appended_fields(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number);
             SET in_error_state = false;
             CALL _myproto_get_len_value(p_bytes, p_offset, p_limit, field_type, value);
             IF not in_error_state THEN
-                CALL _myproto_append_path_value(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number, p_field_name, p_field_json_name, field_type, NULL, value);
+                CALL _myproto_append_path_value(p_message, JSON_LENGTH(p_stack)-1, p_path, p_field_number, p_field_name, p_field_json_name, field_type, p_field_type_name, NULL, value);
             END IF;
         END;
     END WHILE;
@@ -708,67 +729,70 @@ BEGIN
   DECLARE message, stack, value JSON;
   DECLARE parent_path text default '$';
   DECLARE message_type text default '';
-  DECLARE sub_message_type text default IF(p_message_type IS NULL, NULL, CONCAT('.', p_message_type));
+  DECLARE field_type_name text default IF(p_message_type IS NULL, NULL, CONCAT('.', p_message_type));
   DECLARE field_type, field_name, field_json_name text;
   DECLARE decode_raw boolean default p_message_type IS NULL;
   DECLARE packed, repeated boolean default NULL;
 
   SET stack = JSON_ARRAY();
-  CALL _myproto_push_frame(stack, offset, m_limit, parent_path, 0, null, null, message_type, sub_message_type);
+  CALL _myproto_push_frame(stack, offset, m_limit, parent_path, 0, null, null, message_type, field_type_name);
   SET message = JSON_ARRAY();
 
   WHILE offset < p_limit DO
       BEGIN
-          BEGIN
-            DECLARE EXIT HANDLER FOR SQLSTATE '45000'
-            BEGIN
-                CALL _myproto_recover_from_error(p_bytes, stack, message, offset,m_limit, parent_path, field_number, field_name, field_json_name, message_type);
-            END;
-
-            CALL _myproto_get_field_and_wiretype(p_bytes, offset, m_limit, field_number, wiretype);
-            CALL _myproto_get_field_properties(message_type, field_number, wiretype, p_protos, field_type, field_name, field_json_name, sub_message_type, repeated, packed);
-
-            IF _myproto_wiretype_len(wiretype) THEN
-                IF field_type = 'TYPE_MESSAGE' OR field_type = 'PROBABLY_MAP' OR decode_raw THEN
-                    CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, sub_message_type, repeated);
-                    CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, field_type, message_type, sub_message_type);
-                    CALL _myproto_len_limit(p_bytes, offset, m_limit);
-                ELSEIF repeated AND packed AND _myproto_is_scalar(field_type) THEN
-                    CALL _myproto_packed_scalar(p_bytes, offset, m_limit, message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, sub_message_type, p_protos);
-                ELSE
-                    CALL _myproto_get_len_value(p_bytes, offset, m_limit, field_type, value);
-                    CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, repeated, value);
-                END IF;
-            ELSEIF _myproto_wiretype_sgroup(wiretype) THEN
-                CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, sub_message_type, repeated);
-                CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, field_type, message_type, sub_message_type);
-            ELSEIF _myproto_wiretype_egroup(wiretype) THEN
-                IF _myproto_is_frame_field(stack, field_number) THEN
-                    CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, field_type, message_type);
-                    CALL _myproto_append_end_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, sub_message_type, repeated);
-                ELSE
-                    SIGNAL SQLSTATE '45000'
-                        SET MESSAGE_TEXT = 'Malformed message';
-                END IF;
-            ELSE
-                CALL _myproto_get_number_field_value(p_bytes, offset, m_limit, wiretype, value, field_type);
-                CALL _myproto_lookup_enum_value_if_enum_type(field_type, sub_message_type, p_protos, value);
-                CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, repeated, value );
-            END IF;
-
-            IF offset = m_limit THEN
-                CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, field_type, message_type);
+          IF offset = m_limit and JSON_LENGTH(stack) > 1 THEN
+                CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, field_type, message_type, field_type_name);
                 IF JSON_LENGTH(stack) > 0 THEN
-                    CALL _myproto_append_end_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, sub_message_type, repeated);
+                    CALL _myproto_append_end_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, field_type_name, repeated);
                 END IF;
-            END IF;
-          END;
+          ELSE
+              BEGIN
+                DECLARE EXIT HANDLER FOR SQLSTATE '45000'
+                BEGIN
+                     CALL _myproto_recover_from_error(p_bytes, stack, message, offset, m_limit, parent_path, field_number, field_name, field_json_name, message_type, field_type_name);
+                END;
+
+                CALL _myproto_get_field_and_wiretype(p_bytes, offset, m_limit, field_number, wiretype);
+                CALL _myproto_get_field_properties(message_type, field_number, wiretype, p_protos, field_type, field_name, field_json_name, field_type_name, repeated, packed);
+
+                IF _myproto_wiretype_len(wiretype) THEN
+                    IF field_type = 'TYPE_MESSAGE' OR field_type = 'PROBABLY_MAP' OR decode_raw THEN
+                        CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, field_type_name, repeated);
+                        CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, field_type, message_type, field_type_name);
+                        CALL _myproto_len_limit(p_bytes, offset, m_limit);
+                    ELSEIF repeated AND packed AND _myproto_is_scalar(field_type) THEN
+                        CALL _myproto_packed_scalar(p_bytes, offset, m_limit, message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, field_type_name, p_protos);
+                    ELSE
+                        CALL _myproto_get_len_value(p_bytes, offset, m_limit, field_type, value);
+                        CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, field_type_name, repeated, value);
+                    END IF;
+                ELSEIF _myproto_wiretype_sgroup(wiretype) THEN
+                    CALL _myproto_append_start_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, field_type_name, repeated);
+                    CALL _myproto_push_frame(stack, offset, m_limit, parent_path, field_number, field_name, field_type, message_type, field_type_name);
+                ELSEIF _myproto_wiretype_egroup(wiretype) THEN
+                    IF _myproto_is_frame_field(stack, field_number) THEN
+                        CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, field_type, message_type, field_type_name);
+                        CALL _myproto_append_end_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, field_type_name, repeated);
+                    ELSE
+                        SIGNAL SQLSTATE '45000'
+                            SET MESSAGE_TEXT = 'Malformed message';
+                    END IF;
+                ELSE
+                    CALL _myproto_get_number_field_value(p_bytes, offset, m_limit, wiretype, value, field_type);
+                    CALL _myproto_lookup_enum_value_if_enum_type(field_type, field_type_name, p_protos, value);
+                    CALL _myproto_append_path_value(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, field_type_name, repeated, value );
+                END IF;
+              END;
+          END IF;
+
       END;
   END WHILE;
   WHILE JSON_LENGTH(stack) > 0 DO
-      CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, field_type, message_type);
+      CALL _myproto_pop_frame(stack, m_limit, parent_path, field_number, field_name, field_type, message_type,
+                              field_type_name);
       IF JSON_LENGTH(stack) > 0 THEN
-        CALL _myproto_append_end_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type, sub_message_type, repeated);
+        CALL _myproto_append_end_submessage(message, JSON_LENGTH(stack)-1, parent_path, field_number, field_name, field_json_name, field_type,
+                                            field_type_name, repeated);
       END IF;
   END WHILE;
 
@@ -888,16 +912,110 @@ BEGIN
 END;
 //
 
-CREATE PROCEDURE _myproto_json_convert_all_map_entries(INOUT p_jsonformat JSON, IN p_post_process_paths json)
+CREATE PROCEDURE _myproto_json_post_process_timestamp(INOUT p_jsonformat JSON, IN p_path text)
 BEGIN
+    DECLARE seconds integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.seconds'));
+    DECLARE nanos integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.nanos'));
+
+    IF (nanos is null or nanos = 0) THEN
+        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, DATE_FORMAT(FROM_UNIXTIME(seconds), '%Y-%m-%dT%H:%i:%sZ'));
+    ELSE
+        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(DATE_FORMAT(FROM_UNIXTIME(seconds), '%Y-%m-%dT%H:%i:%s'), '.', regexp_replace(LPAD(nanos, 9, '0'), '0+$', ''), 'Z'));
+    END IF;
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_duration(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    DECLARE seconds integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.seconds'));
+    DECLARE nanos integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.nanos'));
+
+    IF (nanos is null or nanos = 0) THEN
+        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(seconds, 's'));
+    ELSE
+        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(seconds, '.', regexp_replace(LPAD(nanos, 9, '0'), '0+$', ''), 's'));
+    END IF;
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_any(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    DECLARE any_type JSON default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.typeUrl'));
+    DECLARE any_value JSON default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.value'));
+    SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, JSON_OBJECT('@type', any_type, 'value', any_value));
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_struct(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, JSON_EXTRACT(p_jsonformat, CONCAT(p_path, '.', 'fields')));
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_value(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path,
+        COALESCE(
+            JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.numberValue')),
+            JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.stringValue')),
+            JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.boolValue')),
+            JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.structValue')),
+            JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.listValue')),
+            JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.nullValue'))
+        ));
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_listvalue(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.values')));
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_nullvalue(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, NULL);
+END;
+//
+
+CREATE FUNCTION _myproto_snake_case_to_lower_camel_case(p_string text) returns text DETERMINISTIC
+BEGIN
+    DECLARE pos integer default LOCATE('_', p_string);
+    DECLARE previous_pos integer default 1;
+    DECLARE camel, lowercase_char text default '';
+    WHILE pos > 0 DO
+        SET lowercase_char = UPPER(SUBSTR(p_string, pos+1, 1));
+        SET camel = CONCAT(camel, SUBSTR(p_string, previous_pos, pos-previous_pos), lowercase_char);
+        SET previous_pos = pos+2;
+        SET pos = LOCATE('_', p_string, previous_pos);
+    END WHILE;
+    IF previous_pos < LENGTH(p_string) THEN
+        SET camel = CONCAT(camel, SUBSTR(p_string, previous_pos, LENGTH(p_string)));
+    END IF;
+    RETURN camel;
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_fieldmask(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    DECLARE fieldmask text default '';
     DECLARE i integer default 0;
-    DECLARE length integer default JSON_LENGTH(p_post_process_paths);
-    DECLARE path text;
+    DECLARE length integer default JSON_LENGTH(p_jsonformat, CONCAT(p_path,'.paths'));
     WHILE i < length DO
-        SET path = JSON_UNQUOTE(JSON_EXTRACT(p_post_process_paths, CONCAT('$[',i,']')));
-        CALL _myproto_json_convert_map_entries(p_jsonformat, path);
+        IF fieldmask = '' THEN
+            SET fieldmask = _myproto_snake_case_to_lower_camel_case(JSON_UNQUOTE(JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.paths[', i, ']'))));
+        ELSE
+            SET fieldmask = CONCAT(fieldmask, ',', _myproto_snake_case_to_lower_camel_case(JSON_UNQUOTE(JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.paths[', i, ']')))));
+        END IF;
         SET i = i + 1;
     END WHILE;
+    SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, fieldmask);
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_wrapper_type(INOUT p_jsonformat JSON, IN p_path text)
+BEGIN
+    SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.value')));
 END;
 //
 
@@ -932,19 +1050,103 @@ BEGIN
 END;
 //
 
+CREATE PROCEDURE _myproto_add_path_to_post_process(INOUT p_post_process_paths JSON, IN p_path text, IN p_depth integer, IN p_field_type text, IN p_message_type text)
+BEGIN
+    DECLARE paths JSON;
+    WHILE JSON_LENGTH(p_post_process_paths) <= p_depth DO
+        SET p_post_process_paths = JSON_ARRAY_APPEND(p_post_process_paths, '$', JSON_OBJECT());
+    END WHILE;
+
+    SET paths = JSON_EXTRACT(p_post_process_paths, CONCAT('$[', p_depth, ']'));
+    IF p_field_type = 'PROBABLY_MAP' THEN
+        SET paths = JSON_MERGE_PATCH(paths, JSON_OBJECT(reverse(SUBSTRING(p_path, LOCATE('[', p_path)+1)), 'PROBABLY_MAP'));
+        SET p_post_process_paths = JSON_REPLACE(p_post_process_paths, CONCAT('$[', p_depth, ']'), paths);
+    ELSEIF p_message_type IN (
+        '.google.protobuf.Timestamp',
+        '.google.protobuf.Duration',
+        '.google.protobuf.Any',
+        '.google.protobuf.Struct',
+        '.google.protobuf.Value',
+        '.google.protobuf.ListValue',
+        '.google.protobuf.NullValue',
+        '.google.protobuf.FieldMask',
+        '.google.protobuf.DoubleValue',
+        '.google.protobuf.FloatValue',
+        '.google.protobuf.Int64Value',
+        '.google.protobuf.UInt64Value',
+        '.google.protobuf.Int32Value',
+        '.google.protobuf.UInt32Value',
+        '.google.protobuf.BoolValue',
+        '.google.protobuf.StringValue',
+        '.google.protobuf.BytesValue'
+                             ) THEN
+        SET paths = JSON_MERGE_PATCH(paths, JSON_OBJECT(reverse(p_path), p_message_type));
+        SET p_post_process_paths = JSON_REPLACE(p_post_process_paths, CONCAT('$[', p_depth, ']'), paths);
+    END IF;
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_paths_at_same_depth(INOUT p_jsonformat JSON, IN p_paths_and_types JSON)
+BEGIN
+    DECLARE paths JSON default JSON_KEYS(p_paths_and_types);
+    DECLARE i integer default 0;
+    DECLARE length integer default JSON_LENGTH(paths);
+    DECLARE path, field_type text;
+    WHILE i < length DO
+        SET path = JSON_UNQUOTE(JSON_EXTRACT(paths, CONCAT('$[',i,']')));
+        SET field_type = JSON_UNQUOTE(JSON_EXTRACT(p_paths_and_types, CONCAT('$."',path,'"')));
+        CASE field_type
+            WHEN 'PROBABLY_MAP' THEN
+                CALL _myproto_json_convert_map_entries(p_jsonformat, path);
+            WHEN '.google.protobuf.Timestamp' THEN
+                CALL _myproto_json_post_process_timestamp(p_jsonformat, path);
+            WHEN '.google.protobuf.Duration' THEN
+                CALL _myproto_json_post_process_duration(p_jsonformat, path);
+            WHEN '.google.protobuf.Any' THEN
+                CALL _myproto_json_post_process_any(p_jsonformat, path);
+            WHEN '.google.protobuf.Struct' THEN
+                CALL _myproto_json_post_process_struct(p_jsonformat, path);
+            WHEN '.google.protobuf.Value' THEN
+                CALL _myproto_json_post_process_value(p_jsonformat, path);
+            WHEN '.google.protobuf.ListValue' THEN
+                CALL _myproto_json_post_process_listvalue(p_jsonformat, path);
+            WHEN '.google.protobuf.NullValue' THEN
+                CALL _myproto_json_post_process_nullvalue(p_jsonformat, path);
+            WHEN '.google.protobuf.FieldMask' THEN
+                CALL _myproto_json_post_process_fieldmask(p_jsonformat, path);
+            ELSE
+                CALL _myproto_json_post_process_wrapper_type(p_jsonformat, path);
+        END CASE;
+        SET i = i + 1;
+    END WHILE;
+END;
+//
+
+CREATE PROCEDURE _myproto_json_post_process_maps_and_well_known_types(INOUT p_jsonformat JSON, IN p_post_process_paths JSON)
+BEGIN
+    DECLARE depth integer default JSON_LENGTH(p_post_process_paths);
+    DECLARE p_paths_and_types JSON;
+    WHILE depth >= 0 DO
+        SET p_paths_and_types = JSON_EXTRACT(p_post_process_paths, CONCAT('$[',depth,']'));
+        CALL _myproto_json_post_process_paths_at_same_depth(p_jsonformat, p_paths_and_types);
+        SET depth = depth - 1;
+    END WHILE;
+END;
+//
+
 CREATE FUNCTION _myproto_jsonformat(p_message JSON) returns JSON deterministic
 BEGIN
     DECLARE length integer DEFAULT JSON_LENGTH(p_message);
     DECLARE i, depth, previous_depth integer default 0;
     DECLARE jsonformat JSON default JSON_OBJECT();
-    DECLARE path, not_needed text default '$';
+    DECLARE path, field_path text default '$';
     DECLARE next_element text default CONCAT('$[',i,']');
     DECLARE type text;
     DECLARE field_number integer;
     DECLARE repeated boolean;
-    DECLARE field_name, field_type, field_json_name text;
+    DECLARE field_name, field_type, field_json_name, field_type_name, message_type text;
     DECLARE value JSON;
-    DECLARE p_post_process_paths JSON default JSON_OBJECT();
+    DECLARE post_process_paths JSON default JSON_OBJECT();
     WHILE i < length DO
         SET type = cast(JSON_UNQUOTE(JSON_EXTRACT(p_message, CONCAT(next_element,'.type'))) as char);
         SET depth = JSON_EXTRACT(p_message, CONCAT(next_element, '.depth'));
@@ -952,15 +1154,16 @@ BEGIN
         SET repeated = cast(JSON_EXTRACT(p_message, CONCAT(next_element, '.repeated')) as unsigned) = 1;
         SET field_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_name')));
         SET field_type = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_type')));
+        SET field_type_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_type_name')));
         SET field_json_name = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.field_json_name')));
         IF type = 'end message' THEN
-            IF field_type = 'PROBABLY_MAP' THEN
-                SET p_post_process_paths = JSON_MERGE_PATCH(p_post_process_paths, JSON_OBJECT(reverse(SUBSTRING(path, LOCATE('[', path)+1)), 'PROBABLY_MAP'));
-            END IF;
+            SET message_type = _myproto_unquote(JSON_EXTRACT(p_message, CONCAT(next_element, '.message_type')));
+            CALL _myproto_add_path_to_post_process(post_process_paths, path, depth, field_type, message_type);
             SET path = SUBSTRING(path, LOCATE('.', path)+1);
         ELSEIF type = 'field' THEN
             SET value = JSON_EXTRACT(p_message, CONCAT(next_element, '.value'));
-            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, repeated, value, not_needed);
+            CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, repeated, value, field_path);
+            CALL _myproto_add_path_to_post_process(post_process_paths, field_path, depth, field_type, field_type_name);
         ELSE
             CALL _myproto_json_add_value(jsonformat, path, field_number, field_name, field_json_name, repeated, JSON_OBJECT(), path);
         END IF;
@@ -969,8 +1172,7 @@ BEGIN
         SET i = i+1;
         SET next_element = CONCAT('$[',i,']');
     END WHILE;
-    CALL _myproto_json_convert_all_map_entries(jsonformat, JSON_KEYS(p_post_process_paths));
-
+    CALL _myproto_json_post_process_maps_and_well_known_types(jsonformat, post_process_paths);
 
     RETURN jsonformat;
 END;
@@ -981,6 +1183,7 @@ BEGIN
     RETURN _myproto_textformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));
 END;
 //
+
 CREATE FUNCTION myproto_decode_to_jsonformat(p_bytes blob, p_message_type text, p_protos JSON) returns JSON deterministic
 BEGIN
     RETURN _myproto_jsonformat(_myproto_flatten_message(p_bytes, p_message_type, p_protos));

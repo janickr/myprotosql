@@ -53,6 +53,7 @@ class TestEnums:
                   'field_name': 'a_single_enum',
                   'field_number': 1,
                   'field_type': 'TYPE_ENUM',
+                  'field_type_name': '.AnEnum',
                   'path': '$',
                   'repeated': False,
                   'type': 'field',
