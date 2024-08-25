@@ -49,7 +49,7 @@ jobs:
         protoc --proto_path=proto --python_out=build --myprotosql_out=build ./proto/*
     - name: Create the myprotosql stored procedures
       run: |
-          mysql --host 127.0.0.1 --port 3306 -uroot -ptest_db test_db < ./myproto.sql 
+          mysql --host 127.0.0.1 --port 3306 -uroot -ptest_db test_db < ./build/install_myproto.sql 
           mysql --host 127.0.0.1 --port 3306 -uroot -ptest_db test_db < ./build/myproto_descriptors.sql
     - name: Test with pytest
       run: |

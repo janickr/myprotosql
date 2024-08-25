@@ -102,11 +102,11 @@ def is_probably_a_map(field_descriptor, message_type_name, message_types):
 
 
 def get_myprotosql_install_script():
-    return pkgutil.get_data(__name__, "myproto.sql").decode("utf-8")
+    return pkgutil.get_data(__name__, "install_myproto.sql").decode("utf-8")
 
 
 def get_myprotosql_uninstall_script():
-    return pkgutil.get_data(__name__, "remove_myproto.sql").decode("utf-8")
+    return pkgutil.get_data(__name__, "uninstall_myproto.sql").decode("utf-8")
 
 
 def run_plugin():

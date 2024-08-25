@@ -11,7 +11,7 @@ A set of mysql stored functions/procedures to read protobuf binary data
 ### Without `*.proto` files
 This is similar to `protoc --decode_raw`.  
 
-Run the `myproto.sql` script on your MySQL DB. This script creates the stored functions and procedures necessary to decode protobuf.
+Run the `install_myproto.sql` script on your MySQL DB. This script creates the stored functions and procedures necessary to decode protobuf.
 
 #### Decode to textformat
 For example to decode_raw the `0x1a03089601` binary data to textformat:
@@ -42,7 +42,7 @@ Decode raw has limitations because protobuf binary data does not contain all inf
 If you need proper decoding, then read on and learn how to use information in your `*.proto` files
 
 ### Using .proto files
-The functions and stored procedures in `myproto.sql` are still needed: run the `myproto.sql` script in MySQL.
+The functions and stored procedures in `install_myproto.sql` are still needed: run the `install_myproto.sql` script in MySQL.
 
 Let's say we have a `.proto` file like this:
 ```protobuf
