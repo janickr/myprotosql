@@ -6,15 +6,52 @@ A set of mysql stored functions/procedures to read protobuf binary data
 [![Tests](https://github.com/janickr/myprotosql/actions/workflows/tests-mysql8.yml/badge.svg)](https://github.com/janickr/myprotosql/actions/workflows/tests-mysql8.yml)
 [![PyPi](https://img.shields.io/pypi/v/myprotosql)](https://pypi.org/project/myprotosql/)
 
-## Getting started
+## Getting started (with *.proto files)
+1) [Download and install](https://github.com/protocolbuffers/protobuf?tab=readme-ov-file#protobuf-compiler-installation) protoc
+2) Install myprotosql (requires python): 
+    ```bash
+    pip install myprotosql
+    ```
+3) Run protoc with the myprotosql plugin (your `*.proto` files located in `./proto`, output in `./build`):  
+    ```bash
+    protoc  --proto_path=proto --myprotosql_out=build ./proto/*
+    ```  
+4) Run the generated `install_myprotosql.sql` and `myproto_descriptors.sql` scripts in MySQL
+5) If you used this proto file, you can now decode your first protobuf message
+    ```mysql
+    select myproto_decode_to_textformat(0x1a03089601, 'foo.bar.ParentMessage', myproto_descriptors());
+    ```
 
-### Without `*.proto` files
+## Getting started (without *.proto files)
 This is similar to `protoc --decode_raw`.  
 
-Run the `install_myproto.sql` script on your MySQL DB. This script creates the stored functions and procedures necessary to decode protobuf.
+1) Install myprotosql (requires python): 
+    ```bash
+    pip install myprotosql
+    ```
+2) Generate the install script  
+    ```bash
+    myprotosql-install-script > install_myprotosql.sql
+    ```  
+3) Run the generated `install_myprotosql.sql` script in MySQL
 
-#### Decode to textformat
-For example to decode_raw the `0x1a03089601` binary data to textformat:
+4) Decode your first protobuf message:
+    ```mysql
+    select myproto_decode_to_textformat(0x1a03089601, null, null);
+    ```
+#### Alternative
+Instead of using pip and python to install myprotosql, you can also just download the `install_myprotosql.sql` from the github repository and run that in MySQL.
+
+## Decoding
+Running `install_myprotosql.sql` installs two functions that can be used to decode protobuf binary messages:
+- myproto_decode_to_textformat(binary_message, message_type, type_descriptors)
+- myproto_decode_to_jsonformat(binary_message, message_type, type_descriptors)
+
+### Decode raw 
+Decoding without the `*.proto` files
+
+#### Textformat
+decode_raw the `0x1a03089601` binary data to textformat:
 ```mysql
 select myproto_decode_to_textformat(0x1a03089601, null, null);
 ```
@@ -24,7 +61,7 @@ Returns:
  1: 150
 }
 ```
-#### Decode to JSON
+#### JSON
 ```mysql
 select myproto_decode_to_jsonformat(0x1a03089601, null, null);
 ```
@@ -33,16 +70,7 @@ Returns:
 {"3": {"1": 150}}
 ```
 
-#### Limitations of decode_raw
-Decode raw has limitations because protobuf binary data does not contain all info to properly decode the data.
-- output will not contain field names, only field numbers
-- packed repeated scalar values will be decoded as one binary string
-- numbers will be decoded as unsigned integers
-
-If you need proper decoding, then read on and learn how to use information in your `*.proto` files
-
-### Using .proto files
-The functions and stored procedures in `install_myproto.sql` are still needed: run the `install_myproto.sql` script in MySQL.
+### Decode using .proto files
 
 Let's say we have a `.proto` file like this:
 ```protobuf
@@ -56,33 +84,11 @@ message ParentMessage {
   optional SubMessage c = 3;
 }
 ```
-We need to compile these `*.proto` files in something MySQL can understand. 
+Check out "Getting started (with *.proto files)" to compile these `*.proto` files in something MySQL can understand. 
 
-1) [Download and install](https://github.com/protocolbuffers/protobuf?tab=readme-ov-file#protobuf-compiler-installation) protoc
-2) Install the myprotosql protoc plugin (you need python for this): 
-    ```bash
-    pip install myprotosql
-    ```
-3) Run the plugin using protoc:  
-    `protoc  --proto_path=<the-path-to-your-proto-files> --myprotosql_out=<the-output-path> --plugin=protoc-gen-myprotosql=<the-path-to-the-myprotosql-plugin> <the-path-to-your-proto-files>\*`   
-    This will generate a `myproto_descriptors.sql` file.  
-    For example:
-    - on Windows if you used Virtualenv, with your proto files located in `.\proto` and your virtual env path is `.\venv`:
-        ```bash
-        protoc.exe  --proto_path=proto --myprotosql_out=build --plugin=protoc-gen-myprotosql=.\venv\Scripts\protoc-gen-myprotosql.exe .\proto\*
-        ```
-    - on Ubuntu without virtualenv with your proto files located in `./proto`:
-        ```bash
-        protoc  --proto_path=proto --myprotosql_out=build ./proto/*
-        ```
-    
-4) Run the `myproto_descriptors.sql` script in MySQL, this will create a `myproto_descriptors` 
-function which returns the necessary information to decode protobuf data that conforms to the `.proto` files.
+#### Textformat
 
-
-#### Decode to textformat
-
-For example to decode_raw the `0x1a03089601` binary data to textformat:
+For example to decode the `0x1a03089601` binary data to textformat:
 ```mysql
 select myproto_decode_to_textformat(0x1a03089601, 'foo.bar.ParentMessage', myproto_descriptors());
 ```
@@ -92,7 +98,7 @@ c: {
  a: 150
 }
 ```
-#### Decode to JSON
+#### JSON
 ```mysql
 select myproto_decode_to_jsonformat(0x1a03089601, 'foo.bar.ParentMessage', myproto_descriptors());
 ```
@@ -101,14 +107,28 @@ Returns:
 {"c": {"a": 150}}
 ```
 
+## Troubleshooting
+### on Windows if you used Virtualenv
+you need to specify the full path to the myprotosql plugin, like this:
+```bash
+protoc.exe  --proto_path=proto --myprotosql_out=build --plugin=protoc-gen-myprotosql=.\venv\Scripts\protoc-gen-myprotosql.exe .\proto\* 
+```
+This assumed your proto files are located in `.\proto` and your virtual env path is `.\venv`. In general the command is of the form:
+```bash
+protoc  --proto_path=<the-path-to-your-proto-files> --myprotosql_out=<the-output-path> --plugin=protoc-gen-myprotosql=<the-path-to-the-myprotosql-plugin> <the-path-to-your-proto-files>\*
+```
+
+### Limitations of decode_raw
+Decode raw has limitations because protobuf binary data does not contain all info to properly decode the data.
+- output will not contain field names, only field numbers
+- packed repeated scalar values will be decoded as one binary string
+- numbers will be decoded as unsigned integers
+
+If you need proper decoding, then read on and learn how to use information in your `*.proto` files
+
+### Protobuf extensions
+Not implemented yet
 
 ## Todo
 - todos in code
-- Any
 - Extensions
-- Well known types
-- mysql 5.7 and integer float doc
-
-- cleanup stack 
-- remove path
-- better debugging experience
