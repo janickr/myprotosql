@@ -19,6 +19,7 @@ DROP FUNCTION IF EXISTS myproto_decode_to_jsonformat;
 DROP FUNCTION IF EXISTS myproto_decode_to_textformat;
 DROP FUNCTION IF EXISTS _myproto_field_type_to_wiretype;
 DROP FUNCTION IF EXISTS _myproto_flatten_message;
+DROP FUNCTION IF EXISTS _myproto_format_nanos;
 DROP FUNCTION IF EXISTS _myproto_is_frame_field;
 DROP FUNCTION IF EXISTS _myproto_is_scalar;
 DROP FUNCTION IF EXISTS _myproto_is_start_submessage;

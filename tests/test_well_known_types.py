@@ -243,7 +243,7 @@ class TestWellKnownTypes:
     def test_decode_listvalue_textformat(self, myprotosql: MyProtoSql):
         message = well_known_types_pb2.WellKnownTypes()
         message.a_listvalue.values.add().string_value = 'one'
-        message.a_listvalue.values.add().number_value = 2
+        message.a_listvalue.values.add().number_value = 2.25
         message.a_listvalue.values.add().bool_value = True
         assert (myprotosql.decode_textformat(message.SerializeToString(), 'WellKnownTypes') ==
                 ('a_listvalue: {\n'
@@ -251,7 +251,7 @@ class TestWellKnownTypes:
                  '  string_value: "one"\n'
                  ' }\n'
                  ' values: {\n'
-                 '  number_value: 2.0f\n'
+                 '  number_value: 2.25f\n'
                  ' }\n'
                  ' values: {\n'
                  '  bool_value: true\n'
@@ -341,10 +341,10 @@ class TestWellKnownTypes:
     def test_decode_listvalue_jsonformat(self, myprotosql: MyProtoSql):
         message = well_known_types_pb2.WellKnownTypes()
         message.a_listvalue.values.add().string_value = 'one'
-        message.a_listvalue.values.add().number_value = 2
+        message.a_listvalue.values.add().number_value = 2.25
         message.a_listvalue.values.add().bool_value = True
         assert (myprotosql.decode_jsonformat(message.SerializeToString(), 'WellKnownTypes') ==
-                {'aListvalue': ['one', 2.0, True]} )
+                {'aListvalue': ['one', 2.25, True]} )
 
     def test_decode_fieldmask_to_camelcase_jsonformat(self, myprotosql: MyProtoSql):
         message = well_known_types_pb2.WellKnownTypes()

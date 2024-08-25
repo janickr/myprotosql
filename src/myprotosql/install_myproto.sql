@@ -19,6 +19,7 @@ DROP FUNCTION IF EXISTS myproto_decode_to_jsonformat;
 DROP FUNCTION IF EXISTS myproto_decode_to_textformat;
 DROP FUNCTION IF EXISTS _myproto_field_type_to_wiretype;
 DROP FUNCTION IF EXISTS _myproto_flatten_message;
+DROP FUNCTION IF EXISTS _myproto_format_nanos;
 DROP FUNCTION IF EXISTS _myproto_is_frame_field;
 DROP FUNCTION IF EXISTS _myproto_is_scalar;
 DROP FUNCTION IF EXISTS _myproto_is_start_submessage;
@@ -913,28 +914,38 @@ BEGIN
 END;
 //
 
+CREATE FUNCTION _myproto_format_nanos(p_nanos integer) RETURNS text DETERMINISTIC
+BEGIN
+    DECLARE nanos text default LPAD(p_nanos, 9, '0');
+    WHILE SUBSTR(nanos, LENGTH(nanos)) = '0' DO
+        SET nanos = SUBSTR(nanos, 1, LENGTH(nanos)-1);
+    END WHILE;
+    RETURN nanos;
+END;
+//
+
 CREATE PROCEDURE _myproto_json_post_process_timestamp(INOUT p_jsonformat JSON, IN p_path text)
 BEGIN
-    DECLARE seconds integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.seconds'));
+    DECLARE seconds bigint default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.seconds'));
     DECLARE nanos integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.nanos'));
 
     IF (nanos is null or nanos = 0) THEN
         SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, DATE_FORMAT(FROM_UNIXTIME(seconds), '%Y-%m-%dT%H:%i:%sZ'));
     ELSE
-        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(DATE_FORMAT(FROM_UNIXTIME(seconds), '%Y-%m-%dT%H:%i:%s'), '.', regexp_replace(LPAD(nanos, 9, '0'), '0+$', ''), 'Z'));
+        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(DATE_FORMAT(FROM_UNIXTIME(seconds), '%Y-%m-%dT%H:%i:%s'), '.', _myproto_format_nanos(nanos), 'Z'));
     END IF;
 END;
 //
 
 CREATE PROCEDURE _myproto_json_post_process_duration(INOUT p_jsonformat JSON, IN p_path text)
 BEGIN
-    DECLARE seconds integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.seconds'));
+    DECLARE seconds bigint default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.seconds'));
     DECLARE nanos integer default JSON_EXTRACT(p_jsonformat, CONCAT(p_path,'.nanos'));
 
     IF (nanos is null or nanos = 0) THEN
         SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(seconds, 's'));
     ELSE
-        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(seconds, '.', regexp_replace(LPAD(nanos, 9, '0'), '0+$', ''), 's'));
+        SET p_jsonformat = JSON_REPLACE(p_jsonformat, p_path, CONCAT(seconds, '.', _myproto_format_nanos(nanos), 's'));
     END IF;
 END;
 //
