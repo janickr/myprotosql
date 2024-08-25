@@ -24,7 +24,7 @@ See [decode using .proto files](#decode-using-proto-files) for an example.
     ```  
   
 - Run the generated `install_myprotosql.sql` and `myproto_descriptors.sql` scripts in MySQL  
-  If you used this proto file, you can now decode your first protobuf message  
+  If you used [this proto file]((#decode-using-proto-files)), you can now decode your first protobuf message  
   
     ```mysql
     select myproto_decode_to_textformat(
