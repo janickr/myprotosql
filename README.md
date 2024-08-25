@@ -10,16 +10,22 @@ A set of mysql stored functions/procedures to read protobuf binary data
 See [decode using .proto files](#decode-using-proto-files) for an example.   
 
 - [Download and install](https://github.com/protocolbuffers/protobuf?tab=readme-ov-file#protobuf-compiler-installation) protoc  
-- Install myprotosql (requires python):   
+  
+- Install myprotosql (requires python):  
+
     ```bash
     pip install myprotosql
     ```   
+  
 - Run protoc with the myprotosql plugin (your `*.proto` files located in `./proto`, output in `./build`):  
+  
     ```bash
     protoc  --proto_path=proto --myprotosql_out=build ./proto/*
     ```  
+  
 - Run the generated `install_myprotosql.sql` and `myproto_descriptors.sql` scripts in MySQL  
   If you used this proto file, you can now decode your first protobuf message  
+  
     ```mysql
     select myproto_decode_to_textformat(
         0x1a03089601, 'foo.bar.ParentMessage', myproto_descriptors());
@@ -29,15 +35,18 @@ See [decode using .proto files](#decode-using-proto-files) for an example.
 This is similar to `protoc --decode_raw`. See [decode raw](#decode-raw) for an example.
 
 - Install myprotosql (requires python): 
+  
     ```bash
     pip install myprotosql
     ```
 - Generate the install script  
+  
     ```bash
     myprotosql-install-script > install_myprotosql.sql
     ```  
 - Run the generated `install_myprotosql.sql` script in MySQL  
   Decode your first protobuf message:
+  
     ```mysql
     select myproto_decode_to_textformat(0x1a03089601, null, null);
     ```
