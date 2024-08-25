@@ -15,6 +15,7 @@
 
 import json
 import sys
+import pkgutil
 
 from google.protobuf.compiler import plugin_pb2 as plugin
 from google.protobuf.json_format import MessageToJson
@@ -100,22 +101,39 @@ def is_probably_a_map(field_descriptor, message_type_name, message_types):
             and looks_like_a_map_type(map_type_name, message_types))
 
 
+def get_myprotosql_install_script():
+    return pkgutil.get_data(__name__, "myproto.sql").decode("utf-8")
+
+
+def get_myprotosql_uninstall_script():
+    return pkgutil.get_data(__name__, "remove_myproto.sql").decode("utf-8")
+
+
 def run_plugin():
     request = plugin.CodeGeneratorRequest.FromString(sys.stdin.buffer.read())
     response = plugin.CodeGeneratorResponse()
 
-    generated_file = response.file.add()
+    descriptors_file = response.file.add()
 
-    generated_file.name = "myproto_descriptors.sql"
+    descriptors_file.name = "myproto_descriptors.sql"
     descriptors = _mark_possible_maps(_build_index(request))
 
-    generated_file.content = f'''
+    descriptors_file.content = f'''
 DROP FUNCTION IF EXISTS myproto_descriptors;
 delimiter //
 CREATE FUNCTION myproto_descriptors() RETURNS JSON deterministic 
     RETURN '{json.dumps(descriptors, indent=2)}';
 //
     '''
+
+    install_file = response.file.add()
+    install_file.name = "install_myproto.sql"
+    install_file.content = get_myprotosql_install_script()
+
+    install_file = response.file.add()
+    install_file.name = "uninstall_myproto.sql"
+    install_file.content = get_myprotosql_uninstall_script()
+
     sys.stdout.buffer.write(response.SerializeToString())
 
 
@@ -128,6 +146,14 @@ def dump_request():
     generated_file.content = MessageToJson(request)
 
     sys.stdout.buffer.write(response.SerializeToString())
+
+
+def print_install_script():
+    print(get_myprotosql_install_script())
+
+
+def print_uninstall_script():
+    print(get_myprotosql_uninstall_script())
 
 
 if __name__ == "__main__":

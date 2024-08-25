@@ -13,4 +13,4 @@
 #  You should have received a copy of the GNU Lesser General Public License along with Myprotosql.
 #  If not, see <https://www.gnu.org/licenses/>.
 
-from .myprotosql import run_plugin, dump_request
+from .myprotosql import run_plugin, dump_request, print_install_script, print_uninstall_script
