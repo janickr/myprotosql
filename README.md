@@ -23,7 +23,7 @@ See [decode using .proto files](https://github.com/janickr/myprotosql#decode-usi
     protoc  --proto_path=proto --myprotosql_out=build ./proto/*
     ```  
   
-- Run the generated `install_myprotosql.sql` and `myproto_descriptors.sql` scripts in MySQL  
+- Run the generated `install_myproto.sql` and `myproto_descriptors.sql` scripts in MySQL  
   If you used [this proto file](https://github.com/janickr/myprotosql#decode-using-proto-files), you can now decode your first protobuf message  
   
     ```mysql
@@ -42,19 +42,19 @@ This is similar to `protoc --decode_raw`. See [decode raw](https://github.com/ja
 - Generate the install script  
   
     ```bash
-    myprotosql-install-script > install_myprotosql.sql
+    myprotosql-install-script > install_myproto.sql
     ```  
-- Run the generated `install_myprotosql.sql` script in MySQL  
+- Run the generated `install_myproto.sql` script in MySQL  
   Decode your first protobuf message:
   
     ```mysql
     select myproto_decode_to_textformat(0x1a03089601, null, null);
     ```
 #### Alternative
-Instead of using pip and python to install myprotosql, you can also just download the `install_myprotosql.sql` from the github repository and run that in MySQL.
+Instead of using pip and python to install myprotosql, you can also just download the `install_myproto.sql` from the github repository and run that in MySQL.
 
 ## Decoding
-Running `install_myprotosql.sql` installs two functions that can be used to decode protobuf binary messages:
+Running `install_myproto.sql` installs two functions that can be used to decode protobuf binary messages:
 - myproto_decode_to_textformat(binary_message, message_type, type_descriptors)
 - myproto_decode_to_jsonformat(binary_message, message_type, type_descriptors)
 
@@ -145,12 +145,12 @@ Not implemented yet
 - Generate the uninstall script  
   
     ```bash
-    myprotosql-uninstall-script > uninstall_myprotosql.sql
+    myprotosql-uninstall-script > uninstall_myproto.sql
     ```  
-- Run the generated `uninstall_myprotosql.sql` script in MySQL  
+- Run the generated `uninstall_myproto.sql` script in MySQL  
   
 #### Alternative
-Download the `uninstall_myprotosql.sql` from the github repository and run that in MySQL.
+Download the `uninstall_myproto.sql` from the github repository and run that in MySQL.
 
 
 ## Todo
