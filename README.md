@@ -7,20 +7,22 @@ A set of mysql stored functions/procedures to read protobuf binary data
 [![PyPi](https://img.shields.io/pypi/v/myprotosql)](https://pypi.org/project/myprotosql/)
 
 ## Getting started (with *.proto files)
-See [decode using .proto files](#decode-using-proto-files) for an example.
+See [decode using .proto files](#decode-using-proto-files) for an example.   
+  
 1) [Download and install](https://github.com/protocolbuffers/protobuf?tab=readme-ov-file#protobuf-compiler-installation) protoc  
-2) Install myprotosql (requires python): 
+2) Install myprotosql (requires python):   
     ```bash
     pip install myprotosql
-    ```  
+    ```   
 3) Run protoc with the myprotosql plugin (your `*.proto` files located in `./proto`, output in `./build`):  
     ```bash
     protoc  --proto_path=proto --myprotosql_out=build ./proto/*
     ```  
-4) Run the generated `install_myprotosql.sql` and `myproto_descriptors.sql` scripts in MySQL
-5) If you used this proto file, you can now decode your first protobuf message
+4) Run the generated `install_myprotosql.sql` and `myproto_descriptors.sql` scripts in MySQL  
+5) If you used this proto file, you can now decode your first protobuf message  
     ```mysql
-    select myproto_decode_to_textformat(0x1a03089601, 'foo.bar.ParentMessage', myproto_descriptors());
+    select myproto_decode_to_textformat(
+        0x1a03089601, 'foo.bar.ParentMessage', myproto_descriptors());
     ```
 
 ## Getting started (without *.proto files)
