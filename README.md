@@ -7,11 +7,12 @@ A set of mysql stored functions/procedures to read protobuf binary data
 [![PyPi](https://img.shields.io/pypi/v/myprotosql)](https://pypi.org/project/myprotosql/)
 
 ## Getting started (with *.proto files)
-1) [Download and install](https://github.com/protocolbuffers/protobuf?tab=readme-ov-file#protobuf-compiler-installation) protoc
+See [decode using .proto files](#decode-using-proto-files) for an example.
+1) [Download and install](https://github.com/protocolbuffers/protobuf?tab=readme-ov-file#protobuf-compiler-installation) protoc  
 2) Install myprotosql (requires python): 
     ```bash
     pip install myprotosql
-    ```
+    ```  
 3) Run protoc with the myprotosql plugin (your `*.proto` files located in `./proto`, output in `./build`):  
     ```bash
     protoc  --proto_path=proto --myprotosql_out=build ./proto/*
@@ -23,7 +24,7 @@ A set of mysql stored functions/procedures to read protobuf binary data
     ```
 
 ## Getting started (without *.proto files)
-This is similar to `protoc --decode_raw`.  
+This is similar to `protoc --decode_raw`. See [decode raw](#decode-raw) for an example.
 
 1) Install myprotosql (requires python): 
     ```bash
@@ -47,7 +48,7 @@ Running `install_myprotosql.sql` installs two functions that can be used to deco
 - myproto_decode_to_textformat(binary_message, message_type, type_descriptors)
 - myproto_decode_to_jsonformat(binary_message, message_type, type_descriptors)
 
-### Decode raw 
+### Decode raw
 Decoding without the `*.proto` files
 
 #### Textformat
@@ -84,7 +85,7 @@ message ParentMessage {
   optional SubMessage c = 3;
 }
 ```
-Check out "Getting started (with *.proto files)" to compile these `*.proto` files in something MySQL can understand. 
+Check out [Getting started (with *.proto files)](#getting-started-with-proto-files) to compile these `*.proto` files in something MySQL can understand. 
 
 #### Textformat
 
