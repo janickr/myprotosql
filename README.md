@@ -140,6 +140,19 @@ If you need proper decoding, then read on and learn how to use information in yo
 ### Protobuf extensions
 Not implemented yet
 
+
+## Uninstalling
+- Generate the uninstall script  
+  
+    ```bash
+    myprotosql-uninstall-script > uninstall_myprotosql.sql
+    ```  
+- Run the generated `uninstall_myprotosql.sql` script in MySQL  
+  
+#### Alternative
+Download the `uninstall_myprotosql.sql` from the github repository and run that in MySQL.
+
+
 ## Todo
 - todos in code
 - Extensions
