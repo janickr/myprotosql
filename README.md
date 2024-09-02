@@ -137,10 +137,6 @@ Decode raw has limitations because protobuf binary data does not contain all inf
 
 If you need proper decoding, then read on and learn how to use information in your `*.proto` files
 
-### Protobuf extensions
-Not implemented yet
-
-
 ## Uninstalling
 - Generate the uninstall script  
   
@@ -155,4 +151,3 @@ Download the `uninstall_myproto.sql` from the github repository and run that in 
 
 ## Todo
 - todos in code
-- Extensions
