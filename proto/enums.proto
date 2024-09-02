@@ -6,7 +6,15 @@ enum AnEnum {
 }
 
 message Enums {
+  message NestedMessage {
+    enum ANestedEnum {
+      NESTED_VALUE = 0;
+      NESTED_VALUE_1 = 1;
+    }
+  }
+
   optional AnEnum a_single_enum = 1;
   repeated AnEnum a_list = 2;
   repeated AnEnum a_packed_list = 3 [packed=true];
+  optional NestedMessage.ANestedEnum a_nested_enum_field = 4;
 }

@@ -39,6 +39,9 @@ def _build_message_type_index(message_type, packed_default):
     for nested_type in message_type.nested_type:
         index = index | {f'{message_type.name}.{name}': fields for name, fields in _build_message_type_index(nested_type, packed_default).items()}
 
+    for enum_type in message_type.enum_type:
+        index = index | {f'{message_type.name}.{name}': values for name, values in _build_enum_type_index(enum_type).items()}
+
     return index
 
 def _build_enum_type_index(enum_type):

@@ -96,3 +96,14 @@ class TestEnums:
         message.a_packed_list.append(enums_pb2.AnEnum.A_VALUE)
         assert (myprotosql.decode_jsonformat(message.SerializeToString(), 'Enums') ==  {'aPackedList': ['ANOTHER_VALUE', 'A_VALUE']})
 
+    def test_decode_textformat_nested(self, myprotosql: MyProtoSql):
+        message = enums_pb2.Enums()
+        message.a_nested_enum_field = enums_pb2.Enums.NestedMessage.ANestedEnum.NESTED_VALUE_1
+        assert (myprotosql.decode_textformat(message.SerializeToString(), 'Enums') ==
+                'a_nested_enum_field: NESTED_VALUE_1\n')
+
+    def test_decode_jsonformat_nested(self, myprotosql: MyProtoSql):
+        message = enums_pb2.Enums()
+        message.a_nested_enum_field = enums_pb2.Enums.NestedMessage.ANestedEnum.NESTED_VALUE_1
+        assert (myprotosql.decode_jsonformat(message.SerializeToString(), 'Enums') ==
+                {'aNestedEnumField': 'NESTED_VALUE_1'})
