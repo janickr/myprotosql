@@ -39,6 +39,44 @@ class TestSimpleMessage:
                     }
                 ])
 
+    def test_decode_high_number(self, myprotosql: MyProtoSql):
+        message = simple_message_pb2.SimpleMessageHighFieldNumber()
+        message.a = 123456
+        assert (myprotosql.decode(message.SerializeToString(), 'SimpleMessageHighFieldNumber') ==
+                [
+                    {
+                        'path': '$',
+                        'type': 'field',
+                        'depth': 0,
+                        'value': 123456,
+                        'field_name': 'a',
+                        'field_json_name': 'a',
+                        'repeated': False,
+                        'field_type': 'TYPE_INT32',
+                        'field_type_name': None,
+                        'field_number': 1000
+                    }
+                ])
+
+    def test_decode_max_number(self, myprotosql: MyProtoSql):
+        message = simple_message_pb2.SimpleMessageHighFieldNumber()
+        message.b = 123456
+        assert (myprotosql.decode(message.SerializeToString(), 'SimpleMessageHighFieldNumber') ==
+                [
+                    {
+                        'path': '$',
+                        'type': 'field',
+                        'depth': 0,
+                        'value': 123456,
+                        'field_name': 'b',
+                        'field_json_name': 'b',
+                        'repeated': False,
+                        'field_type': 'TYPE_INT32',
+                        'field_type_name': None,
+                        'field_number': 536870911
+                    }
+                ])
+
     def test_decode_raw(self, myprotosql: MyProtoSql):
         message = simple_message_pb2.SimpleMessage()
         message.a = 123456

@@ -2,3 +2,8 @@
 message SimpleMessage {
   optional int32 a = 1;
 }
+
+message SimpleMessageHighFieldNumber {
+  optional int32 a = 1000;
+  optional int32 b = 536870911;
+}

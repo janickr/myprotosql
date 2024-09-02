@@ -526,11 +526,11 @@ CREATE FUNCTION _myproto_is_frame_field(p_stack JSON, p_field integer) returns b
 
 CREATE PROCEDURE _myproto_get_field_and_wiretype(IN p_bytes blob, INOUT p_offset integer, IN p_limit integer, OUT p_field_number integer, OUT p_wiretype integer)
 BEGIN
-  DECLARE field_wiretype integer;
+  DECLARE field_wiretype bigint;
 
   CALL _myproto_var_int(p_bytes, p_offset, p_limit, field_wiretype);
   SET p_wiretype = field_wiretype & 0x07;
-  SET p_field_number = (field_wiretype >> 3) & 0x1f;
+  SET p_field_number = (field_wiretype >> 3);
 END;
 //
 
