@@ -1,0 +1,43 @@
+
+import "extendable_message.proto";
+
+package foo.bar.extensions;
+
+extend foo.bar.extendable.ExtendableMessageUnverified {
+  optional int32 an_extension_field = 1001;
+}
+
+extend foo.bar.extendable.ExtendableMessageVerified {
+  optional int32 an_extension_field_verified = 2001;
+}
+
+message NestedExtensionNotRecommended {
+  extend foo.bar.extendable.ExtendableMessageUnverified {
+    optional string nested_field_2 = 1002;
+  }
+  extend foo.bar.extendable.ExtendableMessageVerified {
+    optional string nested_field_2_verified = 2002;
+  }
+  message AnotherNestedLevel {
+    extend foo.bar.extendable.ExtendableMessageUnverified {
+      optional string nested_field_4 = 1004;
+    }
+    extend foo.bar.extendable.ExtendableMessageVerified {
+      optional string nested_field_4_verified = 2004;
+    }
+
+  }
+}
+
+message AnExtensionFieldType {
+  extend foo.bar.extendable.ExtendableMessageUnverified {
+    optional AnExtensionFieldType nested_field_3 = 1003;
+  }
+  extend foo.bar.extendable.ExtendableMessageVerified {
+    optional AnExtensionFieldType nested_field_3_verified = 2003;
+  }
+
+  optional int32 extension_message_field = 1;
+}
+
+

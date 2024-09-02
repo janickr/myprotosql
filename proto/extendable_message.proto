@@ -1,0 +1,34 @@
+
+package foo.bar.extendable;
+
+message ExtendableMessageUnverified {
+  optional int32 a_field = 1;
+  extensions 1000 to 2000;
+}
+
+message ExtendableMessageVerified {
+  optional int32 a_field = 1;
+  extensions 2000 to 3000 [
+    verification = DECLARATION,
+    declaration = {
+      number: 2001,
+      full_name: ".foo.bar.extensions.an_extension_field_verified",
+      type: "int32"
+    },
+    declaration = {
+      number: 2002,
+      full_name: ".foo.bar.extensions.NestedExtensionNotRecommended.nested_field_2_verified",
+      type: "string"
+    },
+    declaration = {
+      number: 2003,
+      full_name: ".foo.bar.extensions.AnExtensionFieldType.nested_field_3_verified",
+      type: ".foo.bar.extensions.AnExtensionFieldType"
+    },
+    declaration = {
+      number: 2004,
+      full_name: ".foo.bar.extensions.NestedExtensionNotRecommended.AnotherNestedLevel.nested_field_4_verified",
+      type: "string"
+    }
+  ];
+}

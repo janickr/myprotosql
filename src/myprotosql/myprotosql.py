@@ -58,13 +58,38 @@ def _build_file_index(proto_file):
             index = index | {f'.{proto_file.package}.{name}': values for name, values in _build_enum_type_index(enum_type).items()}
         else:
             index = index | {f'.{name}': values for name, values in _build_enum_type_index(enum_type).items()}
+        
     return index
+
+
+def _add_extension(index, extension, packed_default):
+    index[extension.extendee]['fields'][extension.number] = field_descriptor(extension, packed_default);
+
+
+def _collect_extensions_in_message_type(index, message_type, packed_default):
+    for extension in message_type.extension:
+        _add_extension(index, extension, packed_default)
+    for nested_type in message_type.nested_type:
+        _collect_extensions_in_message_type(index, nested_type, packed_default)
+
+
+def _collect_extensions_in_file(index, proto_file):
+    packed_default = proto_file.syntax == 'proto3'
+    for extension in proto_file.extension:
+        _add_extension(index, extension, packed_default)
+    
+    for message_type in proto_file.message_type:
+        _collect_extensions_in_message_type(index, message_type, packed_default)
+
 
 
 def _build_index(request):
     index = {}
     for proto_file in request.proto_file:
         index = index | _build_file_index(proto_file)
+
+    for proto_file in request.proto_file:
+        _collect_extensions_in_file(index, proto_file)
 
     return index
 
