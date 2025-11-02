@@ -1,6 +1,17 @@
 version: '3.3'
 services:
 
+  mysql_9:
+    image: mysql:9.5
+    container_name: mysql_9_5
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: test_db
+      MYSQL_DATABASE: test_db
+      MYSQL_USER: test_db
+      MYSQL_PASSWORD: test_db
+
   mysql_8:
     image: mysql:8.4
     container_name: mysql_8_4
