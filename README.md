@@ -148,7 +148,3 @@ If you need proper decoding, then read on and learn how to use information in yo
   
 #### Alternative
 Download the `uninstall_myproto.sql` from the github repository and run that in MySQL.
-
-
-## Todo
-- todos in code
